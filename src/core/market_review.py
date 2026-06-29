@@ -120,6 +120,17 @@ def _get_market_review_text(language: str) -> dict[str, str]:
             "kr_title": "# Korea Market Recap",
             "separator": "> Next market recap follows",
         }
+    if normalized == "ko":
+        return {
+            "root_title": "# 🎯 시장 리뷰",
+            "push_title": "🎯 시장 리뷰",
+            "cn_title": "# 중국 A주 시장 리뷰",
+            "us_title": "# 미국 시장 리뷰",
+            "hk_title": "# 홍콩 시장 리뷰",
+            "jp_title": "# 일본 시장 리뷰",
+            "kr_title": "# 한국 시장 리뷰",
+            "separator": "> 다음 시장 리뷰",
+        }
     return {
         "root_title": "# 🎯 大盘复盘",
         "push_title": "🎯 大盘复盘",

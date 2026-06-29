@@ -291,6 +291,21 @@ class TestReportRenderer(unittest.TestCase):
         self.assertIn("Summary", out)
         self.assertIn("Buy", out)
 
+    def test_render_markdown_in_korean(self) -> None:
+        """Markdown renderer switches headings and summary labels for Korean reports."""
+        r = _make_result(
+            code="005930.KS",
+            name="삼성전자",
+            operation_advice="매수",
+            analysis_summary="상승 흐름이 유지됩니다.",
+            report_language="ko",
+        )
+        out = render("markdown", [r], summary_only=True)
+        self.assertIsNotNone(out)
+        self.assertIn("의사결정 대시보드", out)
+        self.assertIn("분석 결과 요약", out)
+        self.assertIn("매수", out)
+
     def test_render_markdown_market_snapshot_uses_template_context(self) -> None:
         """Market snapshot macro should render localized labels with template context."""
         r = _make_result(

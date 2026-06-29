@@ -1595,7 +1595,7 @@ class AnalysisResult:
     operation_advice: str  # 操作建议：买入/加仓/持有/减仓/卖出/观望
     decision_type: str = "hold"  # 决策类型：buy/hold/sell（用于统计）
     confidence_level: str = "中"  # 置信度：高/中/低
-    report_language: str = "zh"  # 报告输出语言：zh/en
+    report_language: str = "zh"  # 报告输出语言：zh/en/ko
     action: Optional[str] = None  # 建议动作 taxonomy：buy/add/hold/reduce/sell/watch/avoid/alert
     action_label: Optional[str] = None  # 本地化建议动作标签
 
@@ -2268,6 +2268,17 @@ class GeminiAnalyzer:
 - All human-readable JSON values must be written in English.
 - Use the common English company name when you are confident; otherwise keep the original listed company name instead of inventing one.
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, nested dashboard text, checklist items, and all narrative summaries.
+"""
+        if lang == "ko":
+            return base_prompt + """
+
+## 출력 언어(최우선)
+
+- 모든 JSON 키 이름은 변경하지 마세요.
+- `decision_type`은 반드시 `buy|hold|sell` 값을 유지하세요.
+- 사용자가 읽는 모든 JSON 값은 한국어로 작성하세요.
+- 확신할 수 있는 경우 일반적으로 쓰이는 한국어 회사명을 사용하고, 확신이 없으면 상장사 원명을 유지하세요.
+- 여기에는 `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, 중첩된 dashboard 문구, 체크리스트 항목, 모든 서술형 요약이 포함됩니다.
 """
         return base_prompt + """
 
@@ -3923,6 +3934,17 @@ class GeminiAnalyzer:
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, all nested dashboard text, checklist items, and every summary field.
 - Use the common English company name when you are confident. If not, keep the listed company name rather than inventing one.
 - When data is missing, explain it in English instead of Chinese.
+"""
+        elif report_language == "ko":
+            prompt += f"""
+
+### 출력 언어 요구사항(최우선)
+- 모든 JSON 키 이름은 위 정의와 정확히 동일하게 유지하고, 키를 번역하지 마세요.
+- `decision_type`은 반드시 `buy`, `hold`, `sell` 중 하나여야 합니다.
+- 사용자가 읽는 모든 JSON 값은 한국어로 작성하세요.
+- 여기에는 `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, 모든 중첩 dashboard 문구, 체크리스트 항목, 모든 요약 필드가 포함됩니다.
+- 확신할 수 있는 경우 일반적으로 쓰이는 한국어 회사명을 사용하고, 확신이 없으면 상장사 원명을 유지하세요.
+- 데이터가 없을 때는 한국어로 “{no_data_text}, 판단할 수 없습니다”라고 명확히 설명하세요.
 """
         else:
             prompt += f"""

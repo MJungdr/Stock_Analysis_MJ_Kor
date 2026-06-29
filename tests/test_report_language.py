@@ -9,6 +9,7 @@ from src.report_language import (
     get_sentiment_label,
     get_signal_level,
     infer_decision_type_from_advice,
+    normalize_report_language,
     localize_trend_prediction,
     localize_bias_status,
 )
@@ -29,10 +30,27 @@ class ReportLanguageTestCase(unittest.TestCase):
         self.assertEqual(emoji, "🟢")
         self.assertEqual(signal_tag, "buy")
 
+    def test_korean_report_language_aliases_and_signal_labels(self) -> None:
+        self.assertEqual(normalize_report_language("korean"), "ko")
+        self.assertEqual(normalize_report_language("ko-KR"), "ko")
+
+        signal_text, emoji, signal_tag = get_signal_level("매수 / 관망", 40, "ko")
+
+        self.assertEqual(signal_text, "매수")
+        self.assertEqual(emoji, "🟢")
+        self.assertEqual(signal_tag, "buy")
+        self.assertEqual(localize_trend_prediction("bullish", "ko"), "상승")
+
     def test_get_localized_stock_name_replaces_placeholder_for_english(self) -> None:
         self.assertEqual(
             get_localized_stock_name("股票AAPL", "AAPL", "en"),
             "Unnamed Stock",
+        )
+
+    def test_get_localized_stock_name_replaces_placeholder_for_korean(self) -> None:
+        self.assertEqual(
+            get_localized_stock_name("股票005930.KS", "005930.KS", "ko"),
+            "미확인 종목",
         )
 
     def test_get_sentiment_label_preserves_higher_band_thresholds(self) -> None:
