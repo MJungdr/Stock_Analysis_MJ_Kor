@@ -17,7 +17,7 @@
 
 [**产品预览**](#-产品预览) · [**功能特性**](#-功能特性) · [**快速开始**](#-快速开始) · [**推送效果**](#-推送效果) · [**文档中心**](docs/INDEX.md) · [**完整指南**](docs/full-guide.md)
 
-简体中文 | [English](docs/README_EN.md) | [繁體中文](docs/README_CHT.md)
+简体中文 | [English](docs/README_EN.md) | [繁體中文](docs/README_CHT.md) | [한국어](README_KR.md)
 
 </div>
 
@@ -285,3 +285,4 @@ python main.py --webui-only
 本项目仅供学习和研究使用，不构成任何投资建议。股市有风险，投资需谨慎。作者不对使用本项目产生的任何损失负责。
 
 ---
+# Stock_Analysis_MJ
