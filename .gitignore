@@ -87,3 +87,7 @@ static/
 /apps/dsa-desktop/dist/
 /apps/dsa-desktop/node_modules/
 docs/specs/
+
+# Large generated/design assets
+*.gif
+*.psd
