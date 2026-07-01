@@ -68,6 +68,7 @@ from datetime import date, datetime, timezone, timedelta
 from src.webui_frontend import prepare_webui_frontend_assets
 from src.config import get_config, Config
 from src.logging_config import setup_logging
+from src.report_language import normalize_report_language
 from src.services.stock_code_utils import resolve_index_stock_code_for_analysis
 
 
@@ -615,6 +616,15 @@ def _market_review_report_text(review_result: Any) -> str:
     return review_result if isinstance(review_result, str) else ""
 
 
+def _market_review_push_title(config: Config, *, icon: str = "🎯") -> str:
+    language = normalize_report_language(getattr(config, "report_language", "zh"))
+    if language == "en":
+        return f"# {icon} Market Review"
+    if language == "ko":
+        return f"# {icon} 시장 리뷰"
+    return f"# {icon} 大盘复盘"
+
+
 def _save_reused_market_review_report(
     notifier: Any,
     market_report: str,
@@ -626,12 +636,8 @@ def _save_reused_market_review_report(
     body = str(market_report or "").strip()
     if not body:
         return
-    title = (
-        "# 🎯 Market Review"
-        if str(getattr(config, "report_language", "zh")).strip().lower() == "en"
-        else "# 🎯 大盘复盘"
-    )
-    if not any(body.startswith(item) for item in ("# 🎯 大盘复盘", "# 🎯 Market Review")):
+    title = _market_review_push_title(config, icon="🎯")
+    if not any(body.startswith(item) for item in ("# 🎯 大盘复盘", "# 🎯 Market Review", "# 🎯 시장 리뷰")):
         body = f"{title}\n\n{body}"
     try:
         date_str = datetime.now().strftime('%Y%m%d')
@@ -832,7 +838,7 @@ def run_full_analysis(
                     and pipeline.notifier.is_available()
                 ):
                     if pipeline.notifier.send(
-                        f"# 📈 大盘复盘\n\n{market_report}",
+                        f"{_market_review_push_title(config, icon='📈')}\n\n{market_report}",
                         email_send_to_all=True,
                         route_type="report",
                     ):
@@ -890,7 +896,7 @@ def run_full_analysis(
         if merge_notification and (results or market_report) and not args.no_notify:
             parts = []
             if market_report:
-                parts.append(f"# 📈 大盘复盘\n\n{market_report}")
+                parts.append(f"{_market_review_push_title(config, icon='📈')}\n\n{market_report}")
             if results:
                 dashboard_content = pipeline.notifier.generate_aggregate_report(
                     results,
@@ -925,17 +931,18 @@ def run_full_analysis(
             if feishu_doc.is_configured() and (results or market_report):
                 logger.info("正在创建飞书云文档...")
 
-                # 1. 准备标题 "01-01 13:01大盘复盘"
+                # 1. 准备标题
                 tz_cn = timezone(timedelta(hours=8))
                 now = datetime.now(tz_cn)
-                doc_title = f"{now.strftime('%Y-%m-%d %H:%M')} 大盘复盘"
+                doc_label = _market_review_push_title(config, icon="").lstrip("# ").strip()
+                doc_title = f"{now.strftime('%Y-%m-%d %H:%M')} {doc_label}"
 
                 # 2. 准备内容 (拼接个股分析和大盘复盘)
                 full_content = ""
 
                 # 添加大盘复盘内容（如果有）
                 if market_report:
-                    full_content += f"# 📈 大盘复盘\n\n{market_report}\n\n---\n\n"
+                    full_content += f"{_market_review_push_title(config, icon='📈')}\n\n{market_report}\n\n---\n\n"
 
                 # 添加个股决策仪表盘（使用 NotificationService 生成，按 report_type 分支）
                 if results:

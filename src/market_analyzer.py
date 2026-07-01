@@ -52,6 +52,12 @@ _CHINESE_SECTION_PATTERNS = {
     "news_catalysts": r"###\s*五、(?:消息催化|后市展望)",
 }
 
+_KOREAN_SECTION_PATTERNS = {
+    "market_summary": r"###\s*(?:[0-9]+\.\s*)?시장\s*(?:요약|총괄)",
+    "index_commentary": r"###\s*(?:[0-9]+\.\s*)?(?:지수\s*(?:구조|코멘터리)|주요\s*지수)",
+    "sector_highlights": r"###\s*(?:[0-9]+\.\s*)?(?:업종|섹터|테마)",
+}
+
 
 @dataclass
 class MarketIndex:
@@ -166,6 +172,14 @@ class MarketAnalyzer:
 
     def _get_market_scope_name(self, review_language: str | None = None) -> str:
         review_language = review_language or self._get_review_language()
+        if review_language == "ko":
+            market_names = {
+                "us": "미국 시장",
+                "hk": "홍콩 시장",
+                "jp": "일본 시장",
+                "kr": "한국 시장",
+            }
+            return market_names.get(self.region, "중국 A주 시장")
         if self.region == "us":
             return "US market" if review_language == "en" else "美股市场"
         if self.region == "hk":
@@ -180,15 +194,26 @@ class MarketAnalyzer:
 
     def _get_turnover_unit_label(self) -> str:
         """Return the turnover unit label for the current market/language."""
+        review_language = self._get_review_language()
+        if review_language == "ko":
+            if self.region == "us":
+                return "십억 달러"
+            if self.region == "hk":
+                return "십억 홍콩달러"
+            if self.region == "jp":
+                return "십억 엔"
+            if self.region == "kr":
+                return "십억 원"
+            return "억 위안"
         if self.region == "us":
-            return "USD bn" if self._get_review_language() == "en" else "十亿美元"
+            return "USD bn" if review_language == "en" else "十亿美元"
         if self.region == "hk":
-            return "HKD bn" if self._get_review_language() == "en" else "十亿港元"
+            return "HKD bn" if review_language == "en" else "十亿港元"
         if self.region == "jp":
-            return "JPY bn" if self._get_review_language() == "en" else "十亿日元"
+            return "JPY bn" if review_language == "en" else "十亿日元"
         if self.region == "kr":
-            return "KRW bn" if self._get_review_language() == "en" else "十亿韩元"
-        return "CNY 100m" if self._get_review_language() == "en" else "亿"
+            return "KRW bn" if review_language == "en" else "十亿韩元"
+        return "CNY 100m" if review_language == "en" else "亿"
 
     def _format_turnover_value(self, amount_raw: float) -> str:
         """Format raw turnover according to market-specific units."""
@@ -209,7 +234,17 @@ class MarketAnalyzer:
         return "🟢" if change_pct > 0 else "🔴"
 
     def _get_review_title(self, date: str) -> str:
-        if self._get_review_language() == "en":
+        review_language = self._get_review_language()
+        if review_language == "ko":
+            market_names = {
+                "us": "미국 시장 리뷰",
+                "hk": "홍콩 시장 리뷰",
+                "jp": "일본 시장 리뷰",
+                "kr": "한국 시장 리뷰",
+            }
+            market_name = market_names.get(self.region, "중국 A주 시장 리뷰")
+            return f"## {date} {market_name}"
+        if review_language == "en":
             market_names = {
                 "us": "US Market Recap",
                 "hk": "HK Market Recap",
@@ -221,7 +256,18 @@ class MarketAnalyzer:
         return f"## {date} 大盘复盘"
 
     def _get_index_hint(self) -> str:
-        if self._get_review_language() == "en":
+        review_language = self._get_review_language()
+        if review_language == "ko":
+            if self.region == "us":
+                return "S&P 500, Nasdaq, Dow 등 주요 미국 지수의 핵심 움직임을 분석하세요."
+            if self.region == "hk":
+                return "HSI, Hang Seng Tech, HSCEI 등 주요 홍콩 지수의 핵심 움직임을 분석하세요."
+            if self.region == "jp":
+                return "Nikkei 225, TOPIX 등 주요 일본 지수의 핵심 움직임을 분석하세요."
+            if self.region == "kr":
+                return "KOSPI, KOSDAQ 등 주요 한국 지수의 핵심 움직임을 분석하세요."
+            return "상하이종합, 선전성분, 창업판 등 주요 중국 A주 지수의 흐름을 분석하세요."
+        if review_language == "en":
             if self.region == "us":
                 return "Analyze the key moves in the S&P 500, Nasdaq, Dow, and other major indices."
             if self.region == "hk":
@@ -234,6 +280,24 @@ class MarketAnalyzer:
         return self.profile.prompt_index_hint
 
     def _get_strategy_prompt_block(self) -> str:
+        if self._get_review_language() == "ko":
+            return """## 전략 청사진: 시장 국면 리뷰
+주요 지수 방향, 유동성, 시장 폭, 뉴스 촉매를 함께 읽어 다음 거래일의 위험 자세를 정리합니다.
+
+### 전략 원칙
+- 지수 방향을 먼저 확인하고 거래대금과 시장 폭으로 신뢰도를 점검합니다.
+- 모든 결론은 포지션 크기, 매매 속도, 리스크 관리 행동으로 연결합니다.
+- 제공된 데이터와 최신 뉴스 흐름에 근거하고 확인되지 않은 정보를 만들지 않습니다.
+
+### 분석 차원
+- 추세 구조: 상승 추세, 박스권, 방어 국면 중 어디에 가까운지 판단합니다.
+- 유동성 및 심리: 거래대금, 상승/하락 비율, 주도주의 확산 여부로 위험 선호를 평가합니다.
+- 주도 테마: 지속 가능한 촉매가 있는 영역과 회피할 영역을 구분합니다.
+
+### 실행 프레임
+- 공격: 주요 지수가 동반 상승하고 거래대금과 주도 테마가 함께 강화됩니다.
+- 균형: 지수 신호가 엇갈리거나 거래대금이 부족해 확인이 필요합니다.
+- 방어: 지수가 약해지고 하락 영역이 넓어져 리스크 축소가 우선입니다."""
         if self.region == "hk" and self._get_review_language() == "en":
             return """## Strategy Blueprint: Hong Kong Market Regime Strategy
 Focus on HSI trend, southbound flow dynamics, and sector rotation to define next-session risk posture.
@@ -364,6 +428,12 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 
     def _get_strategy_markdown_block(self, review_language: str | None = None) -> str:
         review_language = review_language or self._get_review_language()
+        if review_language == "ko":
+            return """### 6. 전략 프레임워크
+- **추세 구조**: 주요 지수의 방향성과 핵심 지지/저항 회복 여부로 공격, 균형, 방어 국면을 판단합니다.
+- **유동성 및 심리**: 거래대금, 등락 폭, 변동성, 주도주의 확산 여부로 위험 선호를 점검합니다.
+- **주도 테마**: 지속 가능한 촉매가 있는 업종과 단기 과열 또는 회피가 필요한 영역을 구분합니다.
+"""
         if self.region == "hk" and review_language == "en":
             return """### 6. Strategy Framework
 - **Trend Regime**: Classify the market as momentum, range, or risk-off based on HSI/HSTECH/HSCEI alignment.
@@ -405,6 +475,14 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                 "mild_down": "mild losses",
                 "strong_down": "clear weakness",
                 "range": "range-bound trading",
+            }
+        elif review_language == "ko":
+            mapping = {
+                "strong_up": "강한 상승",
+                "mild_up": "완만한 상승",
+                "mild_down": "완만한 하락",
+                "strong_down": "뚜렷한 약세",
+                "range": "박스권 등락",
             }
         else:
             mapping = {
@@ -604,13 +682,30 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         # 按 region 使用不同的新闻搜索词
         search_queries = self.profile.news_queries
         review_language = self._get_review_language()
-        market_names = {
-            "cn": "大盘" if review_language == "zh" else "A-share market",
-            "us": "美股市场" if review_language == "zh" else "US market",
-            "hk": "港股市场" if review_language == "zh" else "HK market",
-            "jp": "日本股市" if review_language == "zh" else "Japan stock market",
-            "kr": "韩国股市" if review_language == "zh" else "Korea stock market",
-        }
+        if review_language == "ko":
+            market_names = {
+                "cn": "중국 A주 시장",
+                "us": "미국 주식시장",
+                "hk": "홍콩 주식시장",
+                "jp": "일본 주식시장",
+                "kr": "한국 주식시장",
+            }
+        elif review_language == "en":
+            market_names = {
+                "cn": "A-share market",
+                "us": "US market",
+                "hk": "HK market",
+                "jp": "Japan stock market",
+                "kr": "Korea stock market",
+            }
+        else:
+            market_names = {
+                "cn": "大盘",
+                "us": "美股市场",
+                "hk": "港股市场",
+                "jp": "日本股市",
+                "kr": "韩国股市",
+            }
         
         try:
             logger.info("[大盘] %s action=search_market_news status=start", self._log_context())
@@ -891,11 +986,13 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         stats_block = self._build_stats_block(overview)
         indices_block = self._build_indices_block(overview)
         sector_block = self._build_sector_block(overview)
-        patterns = (
-            _ENGLISH_SECTION_PATTERNS
-            if self._get_review_language() == "en"
-            else _CHINESE_SECTION_PATTERNS
-        )
+        language = self._get_review_language()
+        if language == "en":
+            patterns = _ENGLISH_SECTION_PATTERNS
+        elif language == "ko":
+            patterns = _KOREAN_SECTION_PATTERNS
+        else:
+            patterns = _CHINESE_SECTION_PATTERNS
 
         if stats_block:
             review = self._insert_after_section(
@@ -944,7 +1041,8 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         has_stats = overview.up_count or overview.down_count or overview.total_amount
         if not has_stats:
             return ""
-        if self._get_review_language() == "en":
+        language = self._get_review_language()
+        if language == "en":
             light = self.build_market_light_snapshot(overview)
             return "\n".join(
                 [
@@ -959,6 +1057,24 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                     f"Turnover {overview.total_amount:.0f} ({self._get_turnover_unit_label()})",
                 ]
             )
+        if language == "ko":
+            light = self.build_market_light_snapshot(overview)
+            score, label = light["score"], light["temperature_label"]
+            participation = overview.up_count + overview.down_count
+            up_ratio = overview.up_count / participation if participation else 0.0
+            limit_spread = overview.limit_up_count - overview.limit_down_count
+            lines = [
+                f"- **시장 신호**: {score}/100 ({label}, {light['label']})",
+                f"- **판단 근거**: {'; '.join(light['reasons'])}",
+                f"- **대응 제안**: {light['guidance']}",
+                "",
+                "| 지표 | 수치 | 관찰 |",
+                "|------|------|------|",
+                f"| 상승/하락/보합 | {overview.up_count} / {overview.down_count} / {overview.flat_count} | 보합 제외 상승 비중 {up_ratio:.1%} |",
+                f"| 상한가/하한가 | {overview.limit_up_count} / {overview.limit_down_count} | 상하한가 차이 {limit_spread:+d} |",
+                f"| 거래대금 | {overview.total_amount:.0f} {self._get_turnover_unit_label()} | {self._describe_turnover_localized(overview.total_amount, language)} |",
+            ]
+            return "\n".join(lines)
         light = self.build_market_light_snapshot(overview)
         score, label = light["score"], light["temperature_label"]
         participation = overview.up_count + overview.down_count
@@ -989,7 +1105,8 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         else:
             status = "red"
 
-        if self._get_review_language() == "en":
+        language = self._get_review_language()
+        if language == "en":
             label_map = {
                 "green": "risk-on",
                 "yellow": "balanced",
@@ -1001,6 +1118,18 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                 "red": "Risk is elevated; prioritize drawdown control and avoid chasing weak rebounds.",
             }
             reasons = self._build_market_light_reasons_en(overview, score)
+        elif language == "ko":
+            label_map = {
+                "green": "공격 가능",
+                "yellow": "관찰 필요",
+                "red": "방어 우선",
+            }
+            guidance_map = {
+                "green": "위험 선호가 양호합니다. 주도 테마의 지속성과 포지션 규율을 함께 확인하세요.",
+                "yellow": "신호가 엇갈립니다. 포지션을 중립 이하로 유지하고 거래대금 확인을 기다리세요.",
+                "red": "위험이 높습니다. 손실 관리를 우선하고 약한 반등 추격은 피하세요.",
+            }
+            reasons = self._build_market_light_reasons_ko(overview, score)
         else:
             label_map = {
                 "green": "可进攻",
@@ -1074,14 +1203,46 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             reasons.append("limited structured breadth data; using available market inputs")
         return reasons[:4]
 
+    def _build_market_light_reasons_ko(self, overview: MarketOverview, score: int) -> List[str]:
+        participation = overview.up_count + overview.down_count
+        up_ratio = overview.up_count / participation if participation else None
+        reasons: List[str] = []
+        if up_ratio is not None:
+            if up_ratio >= 0.6:
+                reasons.append(f"상승 종목 비중 {up_ratio:.0%}, 시장 폭 확산")
+            elif up_ratio <= 0.4:
+                reasons.append(f"상승 종목 비중 {up_ratio:.0%}, 하방 압력 우세")
+            else:
+                reasons.append(f"상승 종목 비중 {up_ratio:.0%}, 시장 분화")
+        index_changes = [idx.change_pct for idx in overview.indices if idx.change_pct is not None]
+        if index_changes:
+            avg_change = sum(index_changes) / len(index_changes)
+            reasons.append(f"주요 지수 평균 등락률 {avg_change:+.2f}%")
+        if overview.limit_up_count or overview.limit_down_count:
+            reasons.append(f"상하한가 차이 {overview.limit_up_count - overview.limit_down_count:+d}")
+        if not reasons and overview.total_amount:
+            reasons.append(
+                f"거래대금 {overview.total_amount:.0f} {self._get_turnover_unit_label()}, "
+                f"{self._describe_turnover_localized(overview.total_amount, 'ko')}"
+            )
+        if not reasons:
+            reasons.append("구조화된 등락 데이터가 제한적이므로 가용 시장 입력으로 판단")
+        return reasons[:4]
+
     def _build_indices_block(self, overview: MarketOverview) -> str:
         """构建指数行情表格"""
         if not overview.indices:
             return ""
-        if self._get_review_language() == "en":
+        language = self._get_review_language()
+        if language == "en":
             lines = [
                 f"| Index | Last | Change % | Open | High | Low | Amplitude | Turnover ({self._get_turnover_unit_label()}) |",
                 "|-------|------|----------|------|------|-----|-----------|-----------------|",
+            ]
+        elif language == "ko":
+            lines = [
+                f"| 지수 | 최신 | 등락률 | 시가 | 고가 | 저가 | 진폭 | 거래대금({self._get_turnover_unit_label()}) |",
+                "|------|------|--------|------|------|------|------|-----------|",
             ]
         else:
             lines = [
@@ -1118,7 +1279,7 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                 lines.append("")
             lines.extend([
                 title,
-                f"| {'Rank' if language == 'en' else '排名'} | {name_label} | {'Change' if language == 'en' else '涨跌幅'} |",
+                f"| {self._localized_rank_label(language)} | {name_label} | {self._localized_change_label(language)} |",
                 "|------|------|--------|",
             ])
             for rank, item in enumerate(rows[:5], 1):
@@ -1131,6 +1292,11 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             append_ranking("#### Lagging Industry Sectors", "Sector", overview.bottom_sectors)
             append_ranking("#### Leading Concept Themes", "Concept", overview.top_concepts)
             append_ranking("#### Lagging Concept Themes", "Concept", overview.bottom_concepts)
+        elif language == "ko":
+            append_ranking("#### 업종 상승 Top 5", "업종", overview.top_sectors)
+            append_ranking("#### 업종 하락 Top 5", "업종", overview.bottom_sectors)
+            append_ranking("#### 테마 상승 Top 5", "테마", overview.top_concepts)
+            append_ranking("#### 테마 하락 Top 5", "테마", overview.bottom_concepts)
         else:
             append_ranking("#### 行业板块领涨 Top 5", "行业板块", overview.top_sectors)
             append_ranking("#### 行业板块领跌 Top 5", "行业板块", overview.bottom_sectors)
@@ -1146,6 +1312,10 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
         if language == "en":
             lines = [
                 "#### News Catalysts",
+            ]
+        elif language == "ko":
+            lines = [
+                "#### 최근 시장 단서",
             ]
         else:
             lines = [
@@ -1168,7 +1338,12 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 
     @classmethod
     def _format_news_catalyst_line(cls, idx: int, item: Any, *, language: str = "zh") -> str:
-        fallback_title = "Untitled catalyst" if language == "en" else "未命名线索"
+        if language == "en":
+            fallback_title = "Untitled catalyst"
+        elif language == "ko":
+            fallback_title = "제목 없는 단서"
+        else:
+            fallback_title = "未命名线索"
         title = cls._compact_news_text(cls._get_news_field(item, "title"), limit=90) or fallback_title
         source = cls._compact_news_text(cls._get_news_field(item, "source"), limit=40)
         date_text = cls._compact_news_text(cls._get_news_field(item, "published_date"), limit=24)
@@ -1232,6 +1407,34 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             return "缩量观望"
         return "暂无数据"
 
+    @staticmethod
+    def _describe_turnover_localized(total_amount: float, language: str) -> str:
+        if language == "ko":
+            if total_amount >= 15000:
+                return "높은 거래 활력"
+            if total_amount >= 9000:
+                return "중간 수준의 거래 활력"
+            if total_amount > 0:
+                return "거래 위축, 관망 우세"
+            return "데이터 없음"
+        return MarketAnalyzer._describe_turnover(total_amount)
+
+    @staticmethod
+    def _localized_rank_label(language: str) -> str:
+        if language == "en":
+            return "Rank"
+        if language == "ko":
+            return "순위"
+        return "排名"
+
+    @staticmethod
+    def _localized_change_label(language: str) -> str:
+        if language == "en":
+            return "Change"
+        if language == "ko":
+            return "등락률"
+        return "涨跌幅"
+
     def _build_market_light_scores(self, overview: MarketOverview) -> Dict[str, Any]:
         """Build the canonical Market Light scores used by reports and alerts."""
 
@@ -1268,7 +1471,8 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
             data_quality = "partial"
 
         score = int(round(breadth_score * 0.45 + index_score * 0.35 + limit_score * 0.20))
-        if self._get_review_language() == "en":
+        language = self._get_review_language()
+        if language == "en":
             if score >= 70:
                 label = "risk-on"
             elif score >= 55:
@@ -1277,6 +1481,15 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
                 label = "mixed"
             else:
                 label = "defensive"
+        elif language == "ko":
+            if score >= 70:
+                label = "강세"
+            elif score >= 55:
+                label = "우호적"
+            elif score >= 40:
+                label = "혼조"
+            else:
+                label = "방어적"
         else:
             if score >= 70:
                 label = "强势"
@@ -1337,6 +1550,45 @@ Focus on index trend, liquidity, and sector rotation to shape the next-session t
 (List the main risks to monitor.)""",
                 f"""### {section_number + 3}. Strategy Plan
 (Provide an offensive/balanced/defensive stance, a position-sizing guideline, one invalidation trigger, and end with "For reference only, not investment advice.")""",
+            ])
+            return "\n\n".join(sections)
+
+        if review_language == "ko":
+            if self.profile.has_market_stats and self.profile.has_sector_rankings:
+                return """### 3. 자금 및 심리
+(거래대금, 참여도, 시장 폭, 위험 선호가 의미하는 바를 해석하세요.)
+
+### 4. 업종 및 테마
+(업종 움직임과 테마 움직임을 구분하고, 동인과 지속성을 분석하세요.)
+
+### 5. 뉴스 촉매
+(최근 뉴스가 다음 거래일에 실제로 영향을 줄 촉매 또는 교란 요인인지 정리하세요.)
+
+### 6. 다음 거래일 전략
+(공격/균형/방어 결론, 포지션 가이드, 주목할 방향, 회피할 방향, 무효화 조건 하나를 제시하세요.)
+
+### 7. 위험 알림
+(주요 리스크를 나열하고 마지막에 "참고용이며 투자 조언이 아닙니다."를 포함하세요.)"""
+
+            section_number = 3
+            sections: List[str] = []
+            if self.profile.has_market_stats:
+                sections.append(f"""### {section_number}. 자금 및 심리
+(제공된 거래대금, 참여도, 시장 폭, 등락 데이터를 기준으로만 해석하세요.)""")
+                section_number += 1
+            if self.profile.has_sector_rankings:
+                sections.append(f"""### {section_number}. 업종 및 테마
+(제공된 업종 및 테마 순위만 분석하세요.)""")
+                section_number += 1
+            sections.extend([
+                f"""### {section_number}. 뉴스 촉매
+(최근 뉴스와 지수 흐름, 거시/외부시장 단서를 연결하되 제공되지 않은 시장 폭, 자금 흐름, 업종 순위는 추론하지 마세요.)""",
+                f"""### {section_number + 1}. 전망
+(지수 흐름과 가용 뉴스를 바탕으로 단기 전망을 제시하세요.)""",
+                f"""### {section_number + 2}. 위험 알림
+(주시해야 할 주요 리스크를 나열하세요.)""",
+                f"""### {section_number + 3}. 전략 계획
+(공격/균형/방어 관점, 포지션 가이드, 무효화 조건 하나를 제시하고 "참고용이며 투자 조언이 아닙니다."로 마무리하세요.)""",
             ])
             return "\n\n".join(sections)
 
@@ -1434,6 +1686,27 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
                 data_limit_lines.append("- Sector/theme ranking data is not available for this market.")
             if data_limit_lines:
                 data_limits_block = "## Data Limits\n" + "\n".join(data_limit_lines)
+        elif review_language == "ko":
+            if self.profile.has_market_stats:
+                stats_block = f"""## 시장 개요
+- 상승: {overview.up_count}개 | 하락: {overview.down_count}개 | 보합: {overview.flat_count}개
+- 상한가: {overview.limit_up_count}개 | 하한가: {overview.limit_down_count}개
+- 거래대금: {overview.total_amount:.0f} {self._get_turnover_unit_label()}"""
+
+            if self.profile.has_sector_rankings:
+                sector_block = f"""## 업종 및 테마 흐름
+업종 상승: {top_sectors_text if top_sectors_text else "데이터 없음"}
+업종 하락: {bottom_sectors_text if bottom_sectors_text else "데이터 없음"}
+테마 상승: {top_concepts_text if top_concepts_text else "데이터 없음"}
+테마 하락: {bottom_concepts_text if bottom_concepts_text else "데이터 없음"}"""
+
+            data_limit_lines = []
+            if not self.profile.has_market_stats:
+                data_limit_lines.append("- 이 시장은 상승/하락 종목 수, 상하한가, 거래대금 합계, 참여도 또는 자금 흐름 신호가 제공되지 않습니다.")
+            if not self.profile.has_sector_rankings:
+                data_limit_lines.append("- 이 시장은 업종/테마 등락 순위 데이터가 제공되지 않습니다.")
+            if data_limit_lines:
+                data_limits_block = "## 데이터 한계\n" + "\n".join(data_limit_lines)
         else:
             if self.profile.has_market_stats:
                 stats_block = f"""## 市场概况
@@ -1478,6 +1751,24 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
                 "2-3 sentences summarizing overall market tone, index moves, and liquidity."
                 if self.profile.has_market_stats
                 else "2-3 sentences summarizing overall market tone, index moves, and available news context."
+            )
+        elif review_language == "ko":
+            data_no_indices_hint = (
+                "주의: 시장 데이터 조회에 실패했습니다. [시장 뉴스]를 중심으로 정성 분석을 작성하고 구체적인 지수 수치는 만들지 마세요."
+                if not indices_text
+                else ""
+            )
+            indices_placeholder = indices_text if indices_text else "지수 데이터 없음(API 오류)"
+            news_placeholder = news_text if news_text else "관련 뉴스 없음"
+            data_boundary_requirement = (
+                "- 데이터 한계 준수: 제공되지 않은 시장 폭, 자금 흐름, 거래대금, 참여도, 업종 순위 데이터를 만들거나 과도하게 해석하지 마세요.\n"
+                if data_limits_block
+                else ""
+            )
+            market_summary_hint = (
+                "2-3문장으로 지수, 상승/하락 종목 수, 거래대금, 심리 온도를 요약하고 강세/우호적/혼조/방어적 판단을 명확히 제시하세요."
+                if self.profile.has_market_stats
+                else "2-3문장으로 지수 흐름, 뉴스 단서, 전체 위험 상태를 요약하세요. 제공되지 않은 시장 폭이나 자금 흐름 데이터는 보완해 쓰지 마세요."
             )
         else:
             indices_placeholder = indices_text if indices_text else "暂无指数数据（接口异常）"
@@ -1556,6 +1847,63 @@ Concept lagging: {bottom_concepts_text if bottom_concepts_text else "N/A"}"""
 ---
 
 Output the report content directly, no extra commentary.
+"""
+
+        if review_language == "ko":
+            report_title = self._get_review_title(overview.date).removeprefix("## ").strip()
+            return f"""당신은 전문 {self._get_market_scope_name('ko')} 애널리스트입니다. 아래 데이터를 바탕으로 간결한 시장 리뷰 보고서를 작성하세요.
+
+[요구사항]
+- 순수 Markdown만 출력
+- JSON 출력 금지
+- 코드 블록 출력 금지
+- 이모지는 제목에서만 제한적으로 사용(제목당 최대 1개)
+- 고정 문구, 제목, 가이드, 결론을 모두 한국어로 작성
+- 이미 시스템이 주입한 표 데이터를 반복 나열하지 말고, 본문에서는 표가 의미하는 바를 해석
+{data_boundary_requirement}
+
+---
+
+# 오늘의 시장 데이터
+
+## 날짜
+{overview.date}
+
+## 주요 지수
+{indices_placeholder}
+
+{stats_block}
+
+{sector_block}
+
+{data_limits_block}
+
+## 시장 뉴스
+{news_placeholder}
+
+{data_no_indices_hint}
+
+{self._get_strategy_prompt_block()}
+
+---
+
+# 출력 템플릿(이 구조를 따르세요)
+
+## {report_title}
+
+> 오늘 시장 상태, 핵심 모순, 다음 거래일 우선 관찰 포인트를 한 문장으로 제시하세요.
+
+### 1. 시장 요약
+({market_summary_hint})
+
+### 2. 지수 구조
+({self._get_index_hint()} 누가 방어했고 누가 부담이 되었는지, 핵심 지지/저항도 함께 설명하세요.)
+
+{output_template_sections}
+
+---
+
+보고서 본문만 바로 출력하고 추가 설명은 쓰지 마세요.
 """
 
         # A 股场景使用中文提示语
@@ -1699,6 +2047,48 @@ Market conditions can change quickly. The data above is for reference only and d
 
 ---
 *Review Time: {datetime.now().strftime('%H:%M')}*
+"""
+            return report
+
+        if template_language == "ko":
+            stats_section = ""
+            if self.profile.has_market_stats:
+                stats_section = f"""
+### 3. 시장 폭 및 유동성
+| 지표 | 값 |
+|------|----|
+| 상승 종목 | {overview.up_count} |
+| 하락 종목 | {overview.down_count} |
+| 상한가 | {overview.limit_up_count} |
+| 하한가 | {overview.limit_down_count} |
+| 거래대금({self._get_turnover_unit_label()}) | {overview.total_amount:.0f} |
+"""
+            sector_section = ""
+            if self.profile.has_sector_rankings and (top_text or bottom_text or top_concept_text or bottom_concept_text):
+                sector_section = f"""
+### 4. 업종 및 테마
+- **상승 업종**: {top_text or "N/A"}
+- **하락 업종**: {bottom_text or "N/A"}
+- **상승 테마**: {top_concept_text or "N/A"}
+- **하락 테마**: {bottom_concept_text or "N/A"}
+"""
+            report_title = self._get_review_title(overview.date).removeprefix("## ").strip()
+            report = f"""## {report_title}
+
+### 1. 시장 요약
+오늘 {self._get_market_scope_name(template_language)}은(는) **{market_mood}** 흐름을 보였습니다.
+
+### 2. 주요 지수
+{indices_text or "- 사용 가능한 지수 데이터가 없습니다."}
+{stats_section}
+{sector_section}
+### 5. 위험 알림
+시장 환경은 빠르게 변할 수 있습니다. 위 데이터는 참고용이며 투자 조언이 아닙니다.
+
+{self._get_strategy_markdown_block(template_language)}
+
+---
+*리뷰 시간: {datetime.now().strftime('%H:%M')}*
 """
             return report
 

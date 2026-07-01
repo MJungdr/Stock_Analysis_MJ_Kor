@@ -118,6 +118,31 @@ class TestMarketAnalyzerStrategyPrompt(unittest.TestCase):
         self.assertNotIn("### 一、市场总结", prompt)
         self.assertNotIn("A股市场三段式复盘策略", prompt)
 
+    def test_cn_prompt_uses_korean_shell_when_report_language_is_ko(self):
+        with patch("src.market_analyzer.get_config", return_value=SimpleNamespace(report_language="ko")):
+            analyzer = MarketAnalyzer(region="cn")
+
+        overview = MarketOverview(
+            date="2026-07-01",
+            up_count=3053,
+            down_count=2364,
+            flat_count=90,
+            limit_up_count=172,
+            limit_down_count=22,
+            total_amount=32934,
+        )
+        prompt = analyzer._build_review_prompt(overview, [])
+
+        self.assertIn("당신은 전문 중국 A주 시장 애널리스트입니다.", prompt)
+        self.assertIn("# 오늘의 시장 데이터", prompt)
+        self.assertIn("## 시장 개요", prompt)
+        self.assertIn("### 1. 시장 요약", prompt)
+        self.assertIn("### 2. 지수 구조", prompt)
+        self.assertIn("### 3. 자금 및 심리", prompt)
+        self.assertIn("전략 청사진: 시장 국면 리뷰", prompt)
+        self.assertNotIn("你是一位专业", prompt)
+        self.assertNotIn("大盘复盘报告", prompt)
+
     def test_jp_kr_strategy_blocks_are_localized_when_report_language_is_en(self):
         cases = [
             ("jp", "Japan Market Regime Strategy", "Macro & FX", "日本市场三段式复盘策略"),

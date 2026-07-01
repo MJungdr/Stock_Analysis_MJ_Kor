@@ -108,6 +108,33 @@ class MarketReviewLocalizationTestCase(unittest.TestCase):
         persist_history.assert_called_once()
         self.assertTrue(persist_history.call_args.kwargs["query_id"].startswith("market_review_"))
 
+    def test_run_market_review_uses_korean_notification_title(self) -> None:
+        notifier = self._make_notifier()
+        market_analyzer = MagicMock()
+        market_analyzer.run_daily_review_with_snapshot.return_value = SimpleNamespace(
+            report="## 2026-07-01 시장 리뷰\n\n본문",
+            market_light_snapshot={"region": "cn", "trade_date": "2026-07-01", "score": 60},
+        )
+
+        with patch.object(
+            market_review_module,
+            "get_config",
+            return_value=SimpleNamespace(report_language="ko", market_review_region="cn"),
+        ), patch.object(
+            market_review_module,
+            "MarketAnalyzer",
+            return_value=market_analyzer,
+        ), patch.object(market_review_module, "_persist_market_review_history") as persist_history:
+            result = run_market_review(notifier, send_notification=True)
+
+        self.assertEqual(result, "## 2026-07-01 시장 리뷰\n\n본문")
+        saved_content = notifier.save_report_to_file.call_args.args[0]
+        self.assertTrue(saved_content.startswith("# 🎯 시장 리뷰\n\n"))
+        sent_content = notifier.send.call_args.args[0]
+        self.assertTrue(sent_content.startswith("🎯 시장 리뷰\n\n"))
+        self.assertNotIn("大盘复盘", saved_content)
+        persist_history.assert_called_once()
+
     def test_run_market_review_can_skip_report_file_for_context_generation(self) -> None:
         notifier = self._make_notifier()
         market_analyzer = MagicMock()
