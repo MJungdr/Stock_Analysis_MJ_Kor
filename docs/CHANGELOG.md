@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] 修复 Web 首页个股栏在 stock-bar 摘要字段缺失或动作建议无法归类时隐藏情绪分与建议标识的问题。
 - [新功能] 新增韩文 README，并支持 `REPORT_LANGUAGE=ko` 生成韩文报告固定文案、Prompt 语言指令与 API/Web 报告语言枚举。
 - [修复] 修复 `REPORT_LANGUAGE=ko` 下大盘复盘 Prompt、通知包装标题和历史摘要仍回落为中文的问题。
+- [chore] 将每日 GitHub Actions 工作流的 `REPORT_LANGUAGE` 默认值设为 `ko`，避免未配置变量时 Discord 定时报告回落为中文。
 
 ## [3.24.1] - 2026-06-28
 
