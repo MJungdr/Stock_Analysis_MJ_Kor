@@ -198,6 +198,24 @@ def test_english_summary_renders_readable_statuses() -> None:
     assert "Phase/data rule" not in section
 
 
+def test_korean_summary_renders_readable_statuses() -> None:
+    section = format_analysis_context_pack_prompt_section(
+        _pack(),
+        report_language="ko",
+    )
+
+    assert "분석 컨텍스트 패키지 요약" in section
+    assert "종목: 600519(贵州茅台)" in section
+    assert "시세: fallback" in section
+    assert "뉴스: missing" in section
+    assert "뉴스 결과 수: 3" in section
+    assert "데이터 한계" in section
+    assert "데이터 품질 점수: 76/100 (사용 가능)" in section
+    assert "알려진 한계: 시세: 대체 데이터, 기술적 지표: 부분 사용 가능" in section
+    assert "confidence_level은 높음이면 안 됩니다" in section
+    assert "数据限制" not in section
+
+
 def test_intraday_phase_degraded_core_adds_phase_data_quality_guard() -> None:
     section = format_analysis_context_pack_prompt_section(_pack_with_phase("intraday"))
 
@@ -219,6 +237,19 @@ def test_intraday_phase_data_quality_guard_renders_in_english() -> None:
     assert "data quality" in section
     assert "confidence_level must not be High" in section
     assert "This is not a post-market recap" not in section
+
+
+def test_intraday_phase_data_quality_guard_renders_in_korean() -> None:
+    section = format_analysis_context_pack_prompt_section(
+        _pack_with_phase("intraday"),
+        report_language="ko",
+    )
+
+    assert "단계/데이터 규칙" in section
+    assert "장중 판단은" in section
+    assert "데이터 품질" in section
+    assert "confidence_level은 높음이면 안 됩니다" in section
+    assert "阶段数据规则" not in section
 
 
 def test_lunch_break_and_closing_auction_degraded_core_add_data_guard_only() -> None:

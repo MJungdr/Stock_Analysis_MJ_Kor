@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] 修复 Web 首页个股栏在 stock-bar 摘要字段缺失或动作建议无法归类时隐藏情绪分与建议标识的问题。
 - [新功能] 新增韩文 README，并支持 `REPORT_LANGUAGE=ko` 生成韩文报告固定文案、Prompt 语言指令与 API/Web 报告语言枚举。
 - [修复] 修复 `REPORT_LANGUAGE=ko` 下大盘复盘 Prompt、通知包装标题和历史摘要仍回落为中文的问题。
+- [修复] 修复 `REPORT_LANGUAGE=ko` 下完整分析模式注入的大盘环境、市场阶段、上下文包和 Agent 回退 Prompt 仍使用中文，导致个股报告混入中文或泛化内容的问题。
 
 ## [3.24.1] - 2026-06-28
 

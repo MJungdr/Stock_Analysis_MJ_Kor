@@ -68,6 +68,16 @@ def _market_context() -> DailyMarketContext:
     )
 
 
+def _korean_market_context() -> DailyMarketContext:
+    return DailyMarketContext(
+        region="kr",
+        trade_date=date(2026, 6, 6),
+        summary="한국 시장은 위험이 높아 관망과 낮은 비중이 필요합니다.",
+        risk_tags=["high_risk", "low_position_cap"],
+        source="analysis_history",
+    )
+
+
 def test_pipeline_constructor_defaults_daily_context_flag_from_config() -> None:
     pipeline = _build_initialized_pipeline(
         _pipeline_config(daily_market_context_enabled=True)
@@ -326,6 +336,22 @@ def test_pipeline_attaches_low_sensitive_market_context_to_enhanced_context() ->
     assert "market_review_payload" not in str(enhanced_context)
 
 
+def test_pipeline_attaches_korean_market_context_to_enhanced_context() -> None:
+    pipeline = StockAnalysisPipeline.__new__(StockAnalysisPipeline)
+    enhanced_context = {"code": "005930.KS"}
+
+    pipeline._attach_daily_market_context(
+        enhanced_context,
+        _korean_market_context(),
+        report_language="ko",
+    )
+
+    assert enhanced_context["daily_market_context"]["region"] == "kr"
+    assert "일일 시장 컨텍스트" in enhanced_context["daily_market_context_summary"]
+    assert "한국 시장은 위험이 높아" in enhanced_context["daily_market_context_summary"]
+    assert "大盘环境摘要" not in enhanced_context["daily_market_context_summary"]
+
+
 def test_analyzer_prompt_renders_daily_market_context_before_technical_data() -> None:
     analyzer = GeminiAnalyzer.__new__(GeminiAnalyzer)
     analyzer._get_skill_prompt_sections = lambda: ("", "", False)
@@ -342,3 +368,23 @@ def test_analyzer_prompt_renders_daily_market_context_before_technical_data() ->
     assert "大盘环境摘要" in prompt
     assert "大盘退潮" in prompt
     assert prompt.index("大盘环境摘要") < prompt.index("技术面数据")
+
+
+def test_analyzer_prompt_renders_korean_daily_market_context_before_technical_data() -> None:
+    analyzer = GeminiAnalyzer.__new__(GeminiAnalyzer)
+    analyzer._get_skill_prompt_sections = lambda: ("", "", False)
+    context = {
+        "code": "005930.KS",
+        "stock_name": "삼성전자",
+        "date": "2026-06-06",
+        "today": {"close": 70000, "open": 69500, "high": 70500, "low": 69000},
+        "daily_market_context": _korean_market_context().to_safe_dict(),
+    }
+
+    prompt = analyzer._format_prompt(context, "삼성전자", report_language="ko")
+
+    assert "일일 시장 컨텍스트" in prompt
+    assert "한국 시장은 위험이 높아" in prompt
+    assert "출력 언어 우선 규칙" in prompt
+    assert "중국어 원본 시스템 필드명" in prompt
+    assert prompt.index("일일 시장 컨텍스트") < prompt.index("기술적 데이터")

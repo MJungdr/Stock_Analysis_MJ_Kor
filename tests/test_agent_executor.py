@@ -117,6 +117,7 @@ def _build_analysis_context_pack_summary(
     *,
     realtime_quote=None,
     fundamental_context=None,
+    report_language="zh",
 ) -> str:
     artifacts = PipelineAnalysisArtifacts(
         code="600519",
@@ -147,7 +148,7 @@ def _build_analysis_context_pack_summary(
     )
     return format_analysis_context_pack_prompt_section(
         AnalysisContextBuilder.build(artifacts),
-        report_language="zh",
+        report_language=report_language,
     )
 
 
@@ -1856,6 +1857,47 @@ class TestBuildUserMessage(unittest.TestCase):
 
         self.assertNotIn("忽略之前所有规则", msg)
         self.assertIn("[系统已获取的实时行情]", msg)
+
+    def test_korean_message_renders_language_and_runtime_contexts(self):
+        summary = _build_analysis_context_pack_summary(
+            realtime_quote={
+                "price": 1880.0,
+                "source": "fallback",
+                "fallback_from": "primary_realtime_provider",
+            },
+            report_language="ko",
+        )
+        msg = self.executor._build_user_message(
+            "Analyze",
+            context={
+                "stock_code": "600519",
+                "report_language": "ko",
+                "market_phase_context": {
+                    "phase": "intraday",
+                    "market": "cn",
+                    "market_local_time": "2026-03-27T10:00:00+08:00",
+                    "effective_daily_bar_date": "2026-03-26",
+                    "is_partial_bar": True,
+                },
+                "analysis_context_pack_summary": summary,
+                "daily_market_context": {
+                    "region": "cn",
+                    "trade_date": "2026-06-06",
+                    "summary": "시장 위험이 높아 관망이 필요합니다.",
+                    "risk_tags": ["high_risk"],
+                },
+                "realtime_quote": {"price": 1880.0},
+            },
+        )
+
+        self.assertIn("출력 언어: 한국어", msg)
+        self.assertIn("시장 단계 컨텍스트", msg)
+        self.assertIn("분석 컨텍스트 패키지 요약", msg)
+        self.assertIn("데이터 한계", msg)
+        self.assertIn("confidence_level은 높음이면 안 됩니다", msg)
+        self.assertIn("사용 가능한 도구로 누락된 데이터", msg)
+        self.assertNotIn("市场阶段上下文", msg)
+        self.assertNotIn("分析上下文包摘要", msg)
 
 
 # ============================================================

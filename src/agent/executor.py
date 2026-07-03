@@ -460,6 +460,14 @@ def _build_language_section(report_language: str, *, chat_mode: bool = False) ->
 - Reply in English.
 - If you output JSON, keep the keys unchanged and write every human-readable value in English.
 """
+        if normalized == "ko":
+            return """
+## 출력 언어
+
+- 한국어로 답변하세요.
+- JSON을 출력하는 경우 키 이름은 변경하지 말고, 사용자가 읽는 모든 값은 한국어로 작성하세요.
+- 중국어로 된 시스템 제공 데이터 라벨은 입력 필드명으로만 취급하고, 답변 본문에는 복사하지 마세요.
+"""
         return """
 ## 输出语言
 
@@ -475,6 +483,16 @@ def _build_language_section(report_language: str, *, chat_mode: bool = False) ->
 - `decision_type` must remain `buy|hold|sell`.
 - All human-readable JSON values must be written in English.
 - This includes `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, all dashboard text, checklist items, and summaries.
+"""
+    if normalized == "ko":
+        return """
+## 출력 언어
+
+- 모든 JSON 키 이름은 변경하지 마세요.
+- `decision_type`은 반드시 `buy|hold|sell` 값을 유지하세요.
+- 사용자가 읽는 모든 JSON 값은 한국어로 작성하세요.
+- 여기에는 `stock_name`, `trend_prediction`, `operation_advice`, `confidence_level`, 모든 dashboard 문구, 체크리스트 항목, 요약 필드가 포함됩니다.
+- 중국어로 된 입력 라벨이나 템플릿 문구를 결과에 복사하지 말고, 실제 주식 데이터와 뉴스 근거를 한국어로 해석하세요.
 """
 
     return """
@@ -818,6 +836,8 @@ class AgentExecutor:
                 parts.append(f"报告类型: {context['report_type']}")
             if report_language == "en":
                 parts.append("输出语言: English（所有 JSON 键名保持不变，所有面向用户的文本值使用英文）")
+            elif report_language == "ko":
+                parts.append("출력 언어: 한국어(JSON 키 이름은 유지하고, 사용자가 읽는 모든 값은 한국어로 작성)")
             else:
                 parts.append("输出语言: 中文（所有 JSON 键名保持不变，所有面向用户的文本值使用中文）")
 
@@ -847,5 +867,10 @@ class AgentExecutor:
             if context.get("news_context"):
                 parts.append(f"\n[系统已获取的新闻与舆情情报]\n{context['news_context']}")
 
-        parts.append("\n请使用可用工具获取缺失的数据（如历史K线、新闻等），然后以决策仪表盘 JSON 格式输出分析结果。")
+        if context and normalize_report_language(context.get("report_language", "zh")) == "en":
+            parts.append("\nUse available tools to fetch missing data such as historical candles and news, then output the result as decision dashboard JSON.")
+        elif context and normalize_report_language(context.get("report_language", "zh")) == "ko":
+            parts.append("\n사용 가능한 도구로 누락된 데이터(과거 K선, 뉴스 등)를 조회한 뒤, 의사결정 대시보드 JSON 형식으로 분석 결과를 출력하세요.")
+        else:
+            parts.append("\n请使用可用工具获取缺失的数据（如历史K线、新闻等），然后以决策仪表盘 JSON 格式输出分析结果。")
         return "\n".join(parts)
