@@ -3177,6 +3177,10 @@ class StockAnalysisPipeline:
             if self.notifier.is_available():
                 channels = self.notifier.get_available_channels()
                 channels = self.notifier.get_channels_for_route("report", channels=channels)
+                logger.info(
+                    "报告通知目标渠道: %s",
+                    [channel.value for channel in channels] or ["none"],
+                )
 
                 def _send_channel_safely(
                     channel_label: str,

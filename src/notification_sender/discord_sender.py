@@ -11,10 +11,35 @@ from typing import Optional
 import requests
 
 from src.config import Config
-from src.formatters import chunk_content_by_max_words
 
 
 logger = logging.getLogger(__name__)
+
+DISCORD_CONTENT_MAX_CHARS = 2000
+
+
+def _chunk_discord_content(content: str, max_chars: int = DISCORD_CONTENT_MAX_CHARS) -> list[str]:
+    """Split Discord message content by the platform's character limit."""
+    if max_chars <= 0:
+        raise ValueError("max_chars must be greater than 0")
+    if not content:
+        return [""]
+    chunks: list[str] = []
+    remaining = content
+    while remaining:
+        if len(remaining) <= max_chars:
+            chunks.append(remaining)
+            break
+        split_at = remaining.rfind("\n", 0, max_chars + 1)
+        if split_at <= 0:
+            split_at = max_chars
+        chunk = remaining[:split_at].rstrip()
+        if not chunk:
+            chunk = remaining[:max_chars]
+            split_at = max_chars
+        chunks.append(chunk)
+        remaining = remaining[split_at:].lstrip("\n")
+    return chunks
 
 
 class DiscordSender:
@@ -31,7 +56,12 @@ class DiscordSender:
             'channel_id': getattr(config, 'discord_main_channel_id', None),
             'webhook_url': getattr(config, 'discord_webhook_url', None),
         }
-        self._discord_max_words = getattr(config, 'discord_max_words', 2000)
+        configured_limit = getattr(config, 'discord_max_words', DISCORD_CONTENT_MAX_CHARS)
+        try:
+            configured_limit = int(configured_limit)
+        except (TypeError, ValueError):
+            configured_limit = DISCORD_CONTENT_MAX_CHARS
+        self._discord_max_chars = max(1, min(configured_limit, DISCORD_CONTENT_MAX_CHARS))
         self._webhook_verify_ssl = getattr(config, 'webhook_verify_ssl', True)
     
     def _is_discord_configured(self) -> bool:
@@ -51,9 +81,9 @@ class DiscordSender:
         Returns:
             是否发送成功
         """
-        # 分割内容，避免单条消息超过 Discord 限制
+        # 分割内容，避免单条消息超过 Discord 的 2000 字符限制
         try:
-            chunks = chunk_content_by_max_words(content, self._discord_max_words)
+            chunks = _chunk_discord_content(content, self._discord_max_chars)
         except ValueError as e:
             logger.error(f"分割 Discord 消息失败: {e}, 尝试整段发送。")
             chunks = [content]

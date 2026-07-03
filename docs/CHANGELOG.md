@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [修复] 修复 `REPORT_LANGUAGE=ko` 下大盘复盘 Prompt、通知包装标题和历史摘要仍回落为中文的问题。
 - [修复] 修复 `REPORT_LANGUAGE=ko` 下完整分析模式注入的大盘环境、市场阶段、上下文包和 Agent 回退 Prompt 仍使用中文，导致个股报告混入中文或泛化内容的问题。
 - [修复] 修复 `REPORT_LANGUAGE=ko` 下通知行情来源缺少韩文映射导致汇总推送失败，并补齐个股分析 Prompt 基础信息与任务要求的韩文外壳。
+- [修复] 修复韩文个股 Prompt 构建时新闻窗口变量未提前初始化导致完整分析失败，并按 Discord 2000 字符限制拆分推送内容。
 
 ## [3.24.1] - 2026-06-28
 

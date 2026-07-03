@@ -126,6 +126,21 @@ class TestDiscordSender(unittest.TestCase):
         self.assertFalse(result)
 
     @mock.patch("src.notification_sender.discord_sender.requests.post")
+    def test_send_webhook_splits_by_discord_character_limit(self, mock_post):
+        mock_post.return_value = _response(204)
+        cfg = _config(discord_webhook_url="https://discord.com/webhook/1")
+        sender = DiscordSender(cfg)
+        content = "한국어보고서" * 430
+
+        result = sender.send_to_discord(content)
+
+        self.assertTrue(result)
+        self.assertGreater(mock_post.call_count, 1)
+        for call in mock_post.call_args_list:
+            payload = call.kwargs["json"]
+            self.assertLessEqual(len(payload["content"]), 2000)
+
+    @mock.patch("src.notification_sender.discord_sender.requests.post")
     def test_send_bot_success_uses_channel_url(self, mock_post):
         mock_post.return_value = _response(200)
         cfg = _config(discord_bot_token="TOKEN", discord_main_channel_id="CH123")
