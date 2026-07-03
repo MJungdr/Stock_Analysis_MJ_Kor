@@ -387,4 +387,12 @@ def test_analyzer_prompt_renders_korean_daily_market_context_before_technical_da
     assert "한국 시장은 위험이 높아" in prompt
     assert "출력 언어 우선 규칙" in prompt
     assert "중국어 원본 시스템 필드명" in prompt
+    assert "종목 기본 정보" in prompt
+    assert "| 항목 | 데이터 |" in prompt
+    assert "| 종목 코드 | **005930.KS** |" in prompt
+    assert "중점 확인 사항" in prompt
+    assert "의사결정 대시보드 요구사항" in prompt
+    assert "股票基础信息" not in prompt
+    assert "| 项目 | 数据 |" not in prompt
+    assert "正确的股票名称格式" not in prompt
     assert prompt.index("일일 시장 컨텍스트") < prompt.index("기술적 데이터")

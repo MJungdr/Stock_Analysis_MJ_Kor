@@ -640,6 +640,44 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
         self.assertIn("*分析模型：gemini/gemini-2.5-flash*", out)
 
     @mock.patch("src.notification.get_config")
+    def test_generate_dashboard_report_localizes_korean_market_snapshot_source(
+        self, mock_get_config: mock.MagicMock
+    ):
+        mock_get_config.return_value = _make_config(report_renderer_enabled=False)
+        service = NotificationService()
+        result = AnalysisResult(
+            code="TSLA",
+            name="Tesla, Inc.",
+            sentiment_score=55,
+            trend_prediction="횡보",
+            operation_advice="관망",
+            analysis_summary="비거래일 기준 보수적 관망.",
+            report_language="ko",
+            market_snapshot={
+                "close": "315.00",
+                "prev_close": "310.00",
+                "open": "312.00",
+                "high": "318.00",
+                "low": "309.00",
+                "pct_chg": "1.61%",
+                "change_amount": "5.00",
+                "amplitude": "2.90%",
+                "volume": "1.00 만股",
+                "amount": "1.00 万元",
+                "price": "315.10",
+                "volume_ratio": "N/A",
+                "turnover_rate": "N/A",
+                "source": "fallback",
+            },
+        )
+
+        out = service.generate_dashboard_report([result], report_date="2026-07-03")
+
+        self.assertIn("당일 시세", out)
+        self.assertIn("대체 데이터", out)
+        self.assertNotIn("KeyError", out)
+
+    @mock.patch("src.notification.get_config")
     def test_generate_dashboard_report_shows_phase_decision_in_default_renderer(
         self, mock_get_config: mock.MagicMock
     ):

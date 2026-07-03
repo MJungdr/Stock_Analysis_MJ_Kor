@@ -3690,15 +3690,69 @@ class GeminiAnalyzer:
         pct_chg_label = "实时涨跌幅" if realtime_overlay_quote else "涨跌幅"
         volume_label = "实时成交量" if realtime_overlay_quote else "成交量"
         amount_label = "实时成交额" if realtime_overlay_quote else "成交额"
+        if report_language == "en":
+            quote_label_map = {
+                "今日行情": "Today's quote",
+                "上一完整交易日行情": "Latest complete trading-day quote",
+                "最新行情": "Latest quote",
+                "收盘价": "Close",
+                "上一完整交易日收盘价": "Latest complete close",
+                "实时估算价": "Realtime estimate",
+                "最新价": "Latest price",
+                "盘中估算价": "Intraday estimate",
+                "开盘价": "Open",
+                "最高价": "High",
+                "最低价": "Low",
+                "涨跌幅": "Change pct",
+                "实时涨跌幅": "Realtime change pct",
+                "成交量": "Volume",
+                "实时成交量": "Realtime volume",
+                "成交额": "Turnover",
+                "实时成交额": "Realtime turnover",
+            }
+            quote_section_title = quote_label_map.get(quote_section_title, quote_section_title)
+            close_price_label = quote_label_map.get(close_price_label, close_price_label)
+            pct_chg_label = quote_label_map.get(pct_chg_label, pct_chg_label)
+            volume_label = quote_label_map.get(volume_label, volume_label)
+            amount_label = quote_label_map.get(amount_label, amount_label)
+            open_label, high_label, low_label, currency_suffix = "Open", "High", "Low", ""
+        elif report_language == "ko":
+            quote_label_map = {
+                "今日行情": "당일 시세",
+                "上一完整交易日行情": "최근 완성 거래일 시세",
+                "最新行情": "최신 시세",
+                "收盘价": "종가",
+                "上一完整交易日收盘价": "최근 완성 거래일 종가",
+                "实时估算价": "실시간 추정가",
+                "最新价": "최신가",
+                "盘中估算价": "장중 추정가",
+                "开盘价": "시가",
+                "最高价": "고가",
+                "最低价": "저가",
+                "涨跌幅": "등락률",
+                "实时涨跌幅": "실시간 등락률",
+                "成交量": "거래량",
+                "实时成交量": "실시간 거래량",
+                "成交额": "거래대금",
+                "实时成交额": "실시간 거래대금",
+            }
+            quote_section_title = quote_label_map.get(quote_section_title, quote_section_title)
+            close_price_label = quote_label_map.get(close_price_label, close_price_label)
+            pct_chg_label = quote_label_map.get(pct_chg_label, pct_chg_label)
+            volume_label = quote_label_map.get(volume_label, volume_label)
+            amount_label = quote_label_map.get(amount_label, amount_label)
+            open_label, high_label, low_label, currency_suffix = "시가", "고가", "저가", ""
+        else:
+            open_label, high_label, low_label, currency_suffix = "开盘价", "最高价", "最低价", " 元"
         quote_rows = [
-            f"| {close_price_label} | {today.get('close', 'N/A')} 元 |",
+            f"| {close_price_label} | {today.get('close', 'N/A')}{currency_suffix} |",
         ]
         if not hide_regular_session_ohlc:
             quote_rows.extend(
                 [
-                    f"| 开盘价 | {today.get('open', 'N/A')} 元 |",
-                    f"| 最高价 | {today.get('high', 'N/A')} 元 |",
-                    f"| 最低价 | {today.get('low', 'N/A')} 元 |",
+                    f"| {open_label} | {today.get('open', 'N/A')}{currency_suffix} |",
+                    f"| {high_label} | {today.get('high', 'N/A')}{currency_suffix} |",
+                    f"| {low_label} | {today.get('low', 'N/A')}{currency_suffix} |",
                 ]
             )
         quote_rows.extend(
@@ -3719,6 +3773,138 @@ class GeminiAnalyzer:
             "en": "## 📰 News Intelligence",
             "ko": "## 📰 뉴스 및 심리 정보",
         }[report_language]
+        prompt_labels = {
+            "zh": {
+                "request_title": "决策仪表盘分析请求",
+                "basic_heading": "## 📊 股票基础信息",
+                "item_label": "项目",
+                "data_label": "数据",
+                "code_label": "股票代码",
+                "name_label": "股票名称",
+                "date_label": "分析日期",
+                "task_heading": "## ✅ 分析任务",
+                "metric_label": "指标",
+                "value_label": "数值",
+                "name_format_block": (
+                    f"### ⚠️ 重要：输出正确的股票名称格式\n"
+                    f"正确的股票名称格式为“股票名称（股票代码）”，例如“贵州茅台（600519）”。\n"
+                    f"如果上方显示的股票名称为\"股票{code}\"或不正确，请在分析开头**明确输出该股票的正确中文全称**。\n"
+                ),
+                "task_intro": f"请为 **{stock_name}({code})** 生成【决策仪表盘】，严格按照 JSON 格式输出。",
+                "focus_heading": "### 重点关注（必须明确回答）：",
+                "focus_lines": [
+                    "1. ❓ 当前结构是否满足激活技能的关键触发条件？",
+                    "2. ❓ 当前入场位置与风险回报是否合理？若偏离过大，请明确说明等待条件",
+                    "3. ❓ 量能、波动与筹码结构是否支持当前结论？",
+                    "4. ❓ 消息面有无重大利空或与技能结论冲突的信息？",
+                    "5. ❓ 若结论成立，具体触发条件、止损位、观察点分别是什么？",
+                ],
+                "legacy_focus_lines": [
+                    "1. ❓ 是否满足 MA5>MA10>MA20 多头排列？",
+                    "2. ❓ 当前乖离率是否在安全范围内（<5%）？—— 超过5%必须标注\"严禁追高\"",
+                    "3. ❓ 量能是否配合（缩量回调/放量突破）？",
+                    "4. ❓ 筹码结构是否健康？",
+                    "5. ❓ 消息面有无重大利空？（减持、处罚、业绩变脸等）",
+                ],
+                "dashboard_heading": "### 决策仪表盘要求：",
+                "dashboard_lines": [
+                    "- **股票名称**：必须输出正确的中文全称（如\"贵州茅台\"而非\"股票600519\"）",
+                    "- **核心结论**：一句话说清该买/该卖/该等",
+                    "- **持仓分类建议**：空仓者怎么做 vs 持仓者怎么做",
+                    "- **具体狙击点位**：买入价、止损价、目标价（精确到分）",
+                    "- **检查清单**：每项用 ✅/⚠️/❌ 标记",
+                    f"- **消息面时间合规**：`latest_news`、`risk_alerts`、`positive_catalysts` 不得包含超出近{news_window_days}日或时间未知的信息",
+                    "- **技术面一致性**：严禁把“空头排列”和“多头排列”等互斥结论同时当作有效依据；若基本面/事件面与技术面冲突，必须明确写“事件先行、技术待确认”或“基本面偏多，但技术面尚未确认”",
+                ],
+                "json_instruction": "请输出完整的 JSON 格式决策仪表盘。",
+            },
+            "en": {
+                "request_title": "Decision Dashboard Analysis Request",
+                "basic_heading": "## 📊 Stock Basics",
+                "item_label": "Item",
+                "data_label": "Data",
+                "code_label": "Stock code",
+                "name_label": "Stock name",
+                "date_label": "Analysis date",
+                "task_heading": "## ✅ Analysis Task",
+                "metric_label": "Metric",
+                "value_label": "Value",
+                "name_format_block": (
+                    f"### ⚠️ Important: stock name format\n"
+                    f"Use the format “company name ({code})”. If the displayed name is generic or wrong, keep the listed company name instead of inventing one.\n"
+                ),
+                "task_intro": f"Generate a decision dashboard for **{stock_name}({code})**. Output strict JSON.",
+                "focus_heading": "### Focus points (must answer clearly):",
+                "focus_lines": [
+                    "1. ❓ Does the current structure satisfy the active skill trigger conditions?",
+                    "2. ❓ Is the entry location and risk/reward reasonable? If stretched, specify the wait condition.",
+                    "3. ❓ Do volume, volatility, and chip/position structure support the conclusion?",
+                    "4. ❓ Are there major negative news items or conflicts with the skill conclusion?",
+                    "5. ❓ If the conclusion is valid, what are the trigger, stop-loss, and watch points?",
+                ],
+                "legacy_focus_lines": [
+                    "1. ❓ Does MA5 > MA10 > MA20 hold?",
+                    "2. ❓ Is the current MA5 bias in a safe range (<5%)? If above 5%, mark it as no chasing.",
+                    "3. ❓ Does volume confirm the setup?",
+                    "4. ❓ Is chip/position structure healthy?",
+                    "5. ❓ Are there major negative news items?",
+                ],
+                "dashboard_heading": "### Decision dashboard requirements:",
+                "dashboard_lines": [
+                    "- **Stock name**: output the correct company/listed name.",
+                    "- **Core conclusion**: one sentence saying buy, sell, hold, or wait.",
+                    "- **Position-aware advice**: separate no-position and holding-position guidance.",
+                    "- **Concrete price plan**: entry, stop-loss, and target prices.",
+                    "- **Checklist**: mark each item with ✅/⚠️/❌.",
+                    f"- **News time compliance**: every `latest_news`, `risk_alerts`, and `positive_catalysts` item must stay within the latest {news_window_days} days and have a known date.",
+                    "- **Technical consistency**: do not use mutually exclusive conclusions as simultaneous evidence; explicitly state conflicts between fundamentals/events and technicals.",
+                ],
+                "json_instruction": "Output the complete decision dashboard JSON.",
+            },
+            "ko": {
+                "request_title": "의사결정 대시보드 분석 요청",
+                "basic_heading": "## 📊 종목 기본 정보",
+                "item_label": "항목",
+                "data_label": "데이터",
+                "code_label": "종목 코드",
+                "name_label": "종목명",
+                "date_label": "분석일",
+                "task_heading": "## ✅ 분석 작업",
+                "metric_label": "지표",
+                "value_label": "값",
+                "name_format_block": (
+                    f"### ⚠️ 중요: 종목명 형식\n"
+                    f"종목명은 “회사명({code})” 형식으로 쓰세요. 표시된 이름이 일반적이거나 부정확하면 확실하지 않은 이름을 만들지 말고 상장사 원명을 유지하세요.\n"
+                ),
+                "task_intro": f"**{stock_name}({code})**에 대한 의사결정 대시보드를 생성하세요. 반드시 JSON 형식으로 출력하세요.",
+                "focus_heading": "### 중점 확인 사항(반드시 명확히 답변):",
+                "focus_lines": [
+                    "1. ❓ 현재 구조가 활성화된 전략/스킬의 핵심 조건을 충족하나요?",
+                    "2. ❓ 현재 진입 위치와 손익비가 합리적인가요? 과열이면 대기 조건을 명확히 쓰세요.",
+                    "3. ❓ 거래량, 변동성, 매물대/포지션 구조가 결론을 뒷받침하나요?",
+                    "4. ❓ 뉴스 측면의 중대한 악재나 전략 결론과 충돌하는 정보가 있나요?",
+                    "5. ❓ 결론이 유효하다면 구체적인 트리거, 손절선, 관찰 포인트는 무엇인가요?",
+                ],
+                "legacy_focus_lines": [
+                    "1. ❓ MA5 > MA10 > MA20 조건을 충족하나요?",
+                    "2. ❓ 현재 MA5 이격도가 안전 범위(<5%)인가요? 5% 초과 시 추격 매수 금지를 명시하세요.",
+                    "3. ❓ 거래량이 판단을 뒷받침하나요?",
+                    "4. ❓ 매물대 구조가 건강한가요?",
+                    "5. ❓ 뉴스 측면의 중대한 악재가 있나요?",
+                ],
+                "dashboard_heading": "### 의사결정 대시보드 요구사항:",
+                "dashboard_lines": [
+                    "- **종목명**: 올바른 회사명 또는 상장사 원명을 사용하세요.",
+                    "- **핵심 결론**: 매수/매도/보유/관망 중 무엇을 해야 하는지 한 문장으로 쓰세요.",
+                    "- **보유 여부별 조언**: 무포지션과 보유자 조언을 분리하세요.",
+                    "- **구체적 가격 계획**: 진입가, 손절가, 목표가를 제시하세요.",
+                    "- **체크리스트**: 각 항목을 ✅/⚠️/❌로 표시하세요.",
+                    f"- **뉴스 시간 준수**: `latest_news`, `risk_alerts`, `positive_catalysts`는 최근 {news_window_days}일 이내이고 날짜가 확인된 항목만 사용하세요.",
+                    "- **기술적 일관성**: 서로 배타적인 결론을 동시에 근거로 쓰지 말고, 이벤트/기본적 요인과 기술적 신호가 충돌하면 명확히 설명하세요.",
+                ],
+                "json_instruction": "완전한 의사결정 대시보드 JSON만 출력하세요.",
+            },
+        }[report_language]
         korean_language_priority_block = ""
         if report_language == "ko":
             korean_language_priority_block = (
@@ -3729,16 +3915,16 @@ class GeminiAnalyzer:
             )
         
         # ========== 构建决策仪表盘格式的输入 ==========
-        prompt = f"""# 决策仪表盘分析请求
+        prompt = f"""# {prompt_labels['request_title']}
 
 {korean_language_priority_block}
 
-## 📊 股票基础信息
-| 项目 | 数据 |
+{prompt_labels['basic_heading']}
+| {prompt_labels['item_label']} | {prompt_labels['data_label']} |
 |------|------|
-| 股票代码 | **{code}** |
-| 股票名称 | **{stock_name}** |
-| 分析日期 | {context.get('date', unknown_text)} |
+| {prompt_labels['code_label']} | **{code}** |
+| {prompt_labels['name_label']} | **{stock_name}** |
+| {prompt_labels['date_label']} | {context.get('date', unknown_text)} |
 
 ---
 """
@@ -3759,7 +3945,7 @@ class GeminiAnalyzer:
 {technical_data_heading}
 
 ### {quote_section_title}
-| 指标 | 数值 |
+| {prompt_labels['metric_label']} | {prompt_labels['value_label']} |
 |------|------|
 {quote_rows_text}
 
@@ -4054,12 +4240,31 @@ class GeminiAnalyzer:
         prompt += f"""
 ---
 
-## ✅ 分析任务
+{prompt_labels['task_heading']}
 
-请为 **{stock_name}({code})** 生成【决策仪表盘】，严格按照 JSON 格式输出。
+{prompt_labels['task_intro']}
 """
         if context.get('is_index_etf'):
-            prompt += """
+            if report_language == "en":
+                prompt += """
+> ⚠️ **Index/ETF constraint**: this target is an index-tracking ETF or market index.
+> - Risk analysis should focus only on **index trend, tracking error, and liquidity**.
+> - Do not include fund-manager litigation, reputation, or executive changes as risk alerts.
+> - Earnings outlook should be based on the index constituents as a whole, not the fund manager's financials.
+> - `risk_alerts` must not include fund-manager operating risks.
+
+"""
+            elif report_language == "ko":
+                prompt += """
+> ⚠️ **지수/ETF 분석 제약**: 이 대상은 지수 추종 ETF 또는 시장 지수입니다.
+> - 위험 분석은 **지수 흐름, 추적 오차, 시장 유동성**에만 집중하세요.
+> - 운용사의 소송, 평판, 임원 변동을 위험 알림에 넣지 마세요.
+> - 실적 전망은 운용사 재무가 아니라 **지수 구성 종목 전체 흐름**을 기준으로 쓰세요.
+> - `risk_alerts`에는 펀드 운용사 관련 영업 리스크를 포함하지 마세요.
+
+"""
+            else:
+                prompt += """
 > ⚠️ **指数/ETF 分析约束**：该标的为指数跟踪型 ETF 或市场指数。
 > - 风险分析仅关注：**指数走势、跟踪误差、市场流动性**
 > - 严禁将基金公司的诉讼、声誉、高管变动纳入风险警报
@@ -4068,42 +4273,23 @@ class GeminiAnalyzer:
 
 """
         prompt += f"""
-### ⚠️ 重要：输出正确的股票名称格式
-正确的股票名称格式为“股票名称（股票代码）”，例如“贵州茅台（600519）”。
-如果上方显示的股票名称为"股票{code}"或不正确，请在分析开头**明确输出该股票的正确中文全称**。
+{prompt_labels['name_format_block']}
 """
-        if use_legacy_default_prompt:
-            prompt += f"""
-
-### 重点关注（必须明确回答）：
-1. ❓ 是否满足 MA5>MA10>MA20 多头排列？
-2. ❓ 当前乖离率是否在安全范围内（<5%）？—— 超过5%必须标注"严禁追高"
-3. ❓ 量能是否配合（缩量回调/放量突破）？
-4. ❓ 筹码结构是否健康？
-5. ❓ 消息面有无重大利空？（减持、处罚、业绩变脸等）
-"""
-        else:
-            prompt += f"""
-
-### 重点关注（必须明确回答）：
-1. ❓ 当前结构是否满足激活技能的关键触发条件？
-2. ❓ 当前入场位置与风险回报是否合理？若偏离过大，请明确说明等待条件
-3. ❓ 量能、波动与筹码结构是否支持当前结论？
-4. ❓ 消息面有无重大利空或与技能结论冲突的信息？
-5. ❓ 若结论成立，具体触发条件、止损位、观察点分别是什么？
+        focus_lines = (
+            prompt_labels["legacy_focus_lines"]
+            if use_legacy_default_prompt
+            else prompt_labels["focus_lines"]
+        )
+        prompt += f"""
+{prompt_labels['focus_heading']}
+{chr(10).join(focus_lines)}
 """
         prompt += f"""
 
-### 决策仪表盘要求：
-- **股票名称**：必须输出正确的中文全称（如"贵州茅台"而非"股票600519"）
-- **核心结论**：一句话说清该买/该卖/该等
-- **持仓分类建议**：空仓者怎么做 vs 持仓者怎么做
-- **具体狙击点位**：买入价、止损价、目标价（精确到分）
-- **检查清单**：每项用 ✅/⚠️/❌ 标记
-- **消息面时间合规**：`latest_news`、`risk_alerts`、`positive_catalysts` 不得包含超出近{news_window_days}日或时间未知的信息
-- **技术面一致性**：严禁把“空头排列”和“多头排列”等互斥结论同时当作有效依据；若基本面/事件面与技术面冲突，必须明确写“事件先行、技术待确认”或“基本面偏多，但技术面尚未确认”
+{prompt_labels['dashboard_heading']}
+{chr(10).join(prompt_labels['dashboard_lines'])}
  
-请输出完整的 JSON 格式决策仪表盘。"""
+{prompt_labels['json_instruction']}"""
 
         if report_language == "en":
             prompt += """
