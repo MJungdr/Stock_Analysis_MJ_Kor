@@ -432,7 +432,7 @@ Modify time: Edit cron expression in `.github/workflows/00-daily-analysis.yml`:
 
 ```yaml
 schedule:
-  - cron: '0 10 * * 1-5'  # UTC time, +8 = Beijing time
+  - cron: '17 10 * * 2'   # Every Tuesday; UTC 10:17 = Beijing 18:17, avoiding the top-of-hour peak
 ```
 
 Common cron examples:

@@ -421,6 +421,33 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
         self.assertEqual([r.title for r in resp.results], ["Apple earnings beat"])
         p1.search.assert_called_once()
         p2.search.assert_not_called()
+        self.assertIn("Reuters", p1.search.call_args.args[0])
+        self.assertIn("SEC", p1.search.call_args.args[0])
+
+    def test_search_stock_news_uses_korea_query_for_kr_suffix_stock(self) -> None:
+        """Korean suffix symbols should not be searched as China A-share news."""
+        fresh = datetime.now().date().isoformat()
+        service = SearchService(
+            bocha_keys=["dummy_key"],
+            searxng_public_instances_enabled=False,
+            news_max_age_days=3,
+            news_strategy_profile="short",
+        )
+        provider = SimpleNamespace(
+            is_available=True,
+            name="P1",
+            search=MagicMock(return_value=_response([_result("SK海力士 000660.KS earnings", fresh)])),
+        )
+        service._providers = [provider]
+
+        resp = service.search_stock_news("000660.KS", "SK海力士", max_results=3)
+
+        self.assertEqual([r.title for r in resp.results], ["SK海力士 000660.KS earnings"])
+        query = provider.search.call_args.args[0]
+        self.assertIn("Korea stock latest news", query)
+        self.assertIn("KRX", query)
+        self.assertIn("DART", query)
+        self.assertNotIn(" 股票 最新消息", query)
 
     def test_a_share_direct_company_news_beats_sector_provider_fallback(self) -> None:
         """A-share direct company hits should beat generic sector news from earlier providers."""
@@ -1847,6 +1874,7 @@ class SearchNewsFreshnessTestCase(unittest.TestCase):
         for stock_code, stock_name, expected_lang, expected_country, title, description in (
             ("600519", "贵州茅台", "zh-hans", "CN", "中文资讯", "中文摘要"),
             ("AAPL", "Apple", "en", "US", "Apple earnings beat", "English summary"),
+            ("000660.KS", "SK海力士", "ko", "KR", "SK Hynix earnings", "Korea summary"),
         ):
             with self.subTest(stock_code=stock_code):
                 fake_response = MagicMock()

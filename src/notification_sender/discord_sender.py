@@ -11,10 +11,12 @@ from typing import Optional
 import requests
 
 from src.config import Config
-from src.formatters import chunk_content_by_max_words
+from src.formatters import chunk_markdown_preserving_blocks
 
 
 logger = logging.getLogger(__name__)
+
+DISCORD_MESSAGE_MAX_CHARS = 2000
 
 
 class DiscordSender:
@@ -51,9 +53,19 @@ class DiscordSender:
         Returns:
             是否发送成功
         """
-        # 分割内容，避免单条消息超过 Discord 限制
+        # 分割内容，避免单条消息超过 Discord 2000 字符限制。
         try:
-            chunks = chunk_content_by_max_words(content, self._discord_max_words)
+            configured_max = int(self._discord_max_words or DISCORD_MESSAGE_MAX_CHARS)
+        except (TypeError, ValueError):
+            logger.warning("DISCORD_MAX_WORDS 配置无效，使用 Discord 2000 字符上限")
+            configured_max = DISCORD_MESSAGE_MAX_CHARS
+        if configured_max < 40:
+            logger.warning("DISCORD_MAX_WORDS=%s 过小，使用 Discord 2000 字符上限", configured_max)
+            configured_max = DISCORD_MESSAGE_MAX_CHARS
+
+        try:
+            max_chars = min(configured_max, DISCORD_MESSAGE_MAX_CHARS)
+            chunks = chunk_markdown_preserving_blocks(content, max_chars, add_page_marker=True)
         except ValueError as e:
             logger.error(f"分割 Discord 消息失败: {e}, 尝试整段发送。")
             chunks = [content]
@@ -85,7 +97,7 @@ class DiscordSender:
         try:
             payload = {
                 'content': content,
-                'username': 'A股分析机器人',
+                'username': 'Stock Analysis Bot',
                 'avatar_url': 'https://picsum.photos/200'
             }
             

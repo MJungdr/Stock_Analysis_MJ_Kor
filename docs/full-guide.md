@@ -116,7 +116,8 @@ daily_stock_analysis/
 | `REPORT_TYPE` | 报告类型：`simple`(精简)、`full`(完整)、`brief`(3-5句概括)，Docker环境推荐设为 `full` | 可选 |
 | `REPORT_LANGUAGE` | 报告输出语言：`zh`(中文) / `en`(英文) / `ko`(韩文)；会同步影响 Prompt、模板、通知 fallback 与 Web 报告页固定文案。仓库自带 `00-daily-analysis.yml` 已显式映射该变量，未配置时默认使用 `ko`，也可在 Actions Secrets/Variables 中覆盖 | 可选 |
 
-> 若 Discord / GitHub Actions 定时推送仍是中文，请确认当前运行使用的是最新 workflow，或在仓库 `Settings -> Secrets and variables -> Actions -> Variables` 中显式设置 `REPORT_LANGUAGE=ko`。
+> 若 Discord / GitHub Actions 定时推送仍是中文，请确认当前运行使用的是最新 workflow，或在仓库 `Settings -> Secrets and variables -> Actions -> Variables` 中显式设置 `REPORT_LANGUAGE=ko`。常见误拼 `REPORT_LAGUAGE` / `report_laguage` 会兼容读取并记录 warning，但推荐迁移为正式变量名 `REPORT_LANGUAGE`。
+> 美股和韩股新闻搜索会按市场生成查询词与搜索 locale；例如美股倾向 SEC/Reuters/Bloomberg/CNBC 语境，韩股倾向 KRX/DART/Yonhap/Reuters 语境，避免非 A 股报告继续优先消费中文资讯。
 
 | `REPORT_SUMMARY_ONLY` | 仅分析结果摘要：设为 `true` 时只推送汇总，不含个股详情；多股时适合快速浏览（默认 false，Issue #262） | 可选 |
 | `REPORT_SHOW_LLM_MODEL` | 通知报告底部是否显示本次分析使用的 LLM 模型名称，默认 `true`；设为 `false` 可隐藏运行时模型信息。该变量仅调整展示，不影响 provider/model/Base URL、LiteLLM 路由或运行时模型保存/迁移/清理语义。 | 可选 |
@@ -207,7 +208,7 @@ daily_stock_analysis/
 ### 4. 手动测试
 
 1. 进入 `Actions` 标签
-2. 左侧选择 `每日股票分析` workflow
+2. 左侧选择 `每周股票分析` workflow
 3. 点击右侧的 `Run workflow` 按钮
 4. 选择运行模式
 5. 点击绿色的 `Run workflow` 确认
@@ -690,7 +691,7 @@ python main.py --workers 5            # 指定并发数
 ```yaml
 schedule:
   # UTC 时间，北京时间 = UTC + 8
-  - cron: '0 10 * * 1-5'   # 周一到周五 18:00（北京时间）
+  - cron: '17 10 * * 2'    # 每周二 18:17（北京时间，避开整点高峰）
 ```
 
 常用时间对照：
@@ -721,7 +722,7 @@ schedule:
 
 手动触发步骤：
 
-1. 打开 `Actions → 每日股票分析 → Run workflow`
+1. 打开 `Actions → 每周股票分析 → Run workflow`
 2. 选择 `mode`（`full` / `market-only` / `stocks-only`）
 3. 若当天是非交易日且希望仍执行，将 `force_run` 设为 `true`
 4. 点击 `Run workflow`

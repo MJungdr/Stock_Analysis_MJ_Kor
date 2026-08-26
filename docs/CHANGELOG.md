@@ -16,6 +16,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - [新功能] 新增韩文 README，并支持 `REPORT_LANGUAGE=ko` 生成韩文报告固定文案、Prompt 语言指令与 API/Web 报告语言枚举。
 - [修复] 修复 `REPORT_LANGUAGE=ko` 下大盘复盘 Prompt、通知包装标题和历史摘要仍回落为中文的问题。
 - [chore] 将每日 GitHub Actions 工作流的 `REPORT_LANGUAGE` 默认值设为 `ko`，避免未配置变量时 Discord 定时报告回落为中文。
+- [修复] 修复 `STOCK_LIST` 常规配置与热重载未解析日韩股票池裸码的问题，避免 `000660` 等韩股代码在定时报告中误按 A 股分析。
+- [修复] 强化 `REPORT_LANGUAGE=ko` 的个股分析 Prompt、补全重试和异常兜底文案，避免韩文报告正文混入中文。
+- [改进] 美股与韩股新闻搜索按市场生成英文/韩国市场查询词和 Brave locale，韩股优先覆盖 KRX/DART/Yonhap/Reuters 等来源语境。
+- [修复] Discord 推送改为按 2000 字符上限切分 Markdown，并移除 A 股专属机器人名称，降低长报告发送失败风险。
+- [改进] 兼容常见拼写错误 `REPORT_LAGUAGE` / `report_laguage`，并提示应迁移到正式 `REPORT_LANGUAGE`。
+- [改进] 将 GitHub Actions 股票分析默认计划调整为每周二执行，并将工作流名称更新为“每周股票分析”。
 
 ## [3.24.1] - 2026-06-28
 

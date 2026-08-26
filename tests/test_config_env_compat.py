@@ -582,6 +582,22 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
 
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_report_language_accepts_common_misspelled_alias(
+        self,
+        _mock_parse_yaml,
+        _mock_setup_env,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env_path = Path(temp_dir) / ".env"
+            env_path.write_text("REPORT_LAGUAGE=Ko\n", encoding="utf-8")
+
+            with patch.dict(os.environ, {"ENV_FILE": str(env_path)}, clear=True):
+                config = Config._load_from_env()
+
+        self.assertEqual(config.report_language, "ko")
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
     def test_report_show_llm_model_defaults_true_and_can_be_disabled(
         self,
         _mock_parse_yaml,
@@ -863,6 +879,31 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
         self.assertTrue(
             any(issue.severity == "error" and issue.field == "STOCK_LIST" for issue in issues)
         )
+
+    def test_stock_list_load_resolves_indexed_kr_bare_code(self) -> None:
+        def _resolve_index_code(code: str) -> str:
+            return "000660.KS" if code == "000660" else code.strip().upper()
+
+        with patch.dict(os.environ, {"STOCK_LIST": "000660,AAPL"}, clear=True), \
+             patch("src.config._resolve_index_stock_code_for_config", side_effect=_resolve_index_code):
+            config = Config._load_from_env()
+
+        self.assertEqual(config.stock_list, ["000660.KS", "AAPL"])
+
+    def test_refresh_stock_list_resolves_indexed_kr_bare_code(self) -> None:
+        def _resolve_index_code(code: str) -> str:
+            return "000660.KS" if code == "000660" else code.strip().upper()
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            env_path = Path(temp_dir) / ".env"
+            env_path.write_text("STOCK_LIST=000660\n", encoding="utf-8")
+
+            config = Config(stock_list=["600519"])
+            with patch.dict(os.environ, {"ENV_FILE": str(env_path)}, clear=True), \
+                 patch("src.config._resolve_index_stock_code_for_config", side_effect=_resolve_index_code):
+                config.refresh_stock_list()
+
+        self.assertEqual(config.stock_list, ["000660.KS"])
 
     def test_parse_report_language_accepts_known_alias_without_warning(self) -> None:
         with self.assertNoLogs("src.config", level="WARNING"):

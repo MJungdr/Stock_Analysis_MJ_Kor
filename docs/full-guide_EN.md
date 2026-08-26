@@ -117,7 +117,8 @@ Go to your forked repo → `Settings` → `Secrets and variables` → `Actions` 
 | `REPORT_TYPE` | Report type: `simple` (concise), `full` (complete), `brief` (3-5 sentences), Docker recommended: `full` | Optional |
 | `REPORT_LANGUAGE` | Report output language: `zh` (Chinese) / `en` (English) / `ko` (Korean); also updates prompt instructions, templates, notification fallbacks, and fixed copy in the Web report view. The bundled `00-daily-analysis.yml` maps this variable and defaults to `ko` when unset; Actions Secrets/Variables can still override it | Optional |
 
-> If Discord / GitHub Actions scheduled pushes are still Chinese, confirm the run is using the latest workflow, or explicitly set `REPORT_LANGUAGE=ko` under repository `Settings -> Secrets and variables -> Actions -> Variables`.
+> If Discord / GitHub Actions scheduled pushes are still Chinese, confirm the run is using the latest workflow, or explicitly set `REPORT_LANGUAGE=ko` under repository `Settings -> Secrets and variables -> Actions -> Variables`. Common misspellings `REPORT_LAGUAGE` / `report_laguage` are read with a warning for compatibility, but should be renamed to the official `REPORT_LANGUAGE`.
+> US and Korean stock news searches now use market-specific query terms and search locale hints; for example US stocks lean toward SEC/Reuters/Bloomberg/CNBC context, while Korean stocks lean toward KRX/DART/Yonhap/Reuters context instead of China-first news.
 
 | `REPORT_SHOW_LLM_MODEL` | Whether notification report footers show the LLM model used for analysis. Defaults to `true`; set to `false` to hide runtime model metadata. This switch only affects presentation and does not change provider/model/Base URL, LiteLLM routing, or runtime model save/migration/cleanup behavior. | Optional |
 | `REPORT_TEMPLATES_DIR` | Jinja2 template directory (relative to project root, default `templates`) | Optional |
@@ -185,7 +186,7 @@ To get started quickly, you need at minimum:
 
 ### 5. Done!
 
-Default schedule: Every weekday at **18:00 (Beijing Time)** automatic execution.
+Default schedule: Every Tuesday at **18:17 (Beijing Time)** automatic execution, avoiding the top-of-hour scheduling peak.
 
 ---
 
@@ -624,7 +625,7 @@ Edit `.github/workflows/00-daily-analysis.yml`:
 ```yaml
 schedule:
   # UTC time, Beijing time = UTC + 8
-  - cron: '0 10 * * 1-5'   # Monday to Friday 18:00 (Beijing Time)
+  - cron: '17 10 * * 2'    # Every Tuesday at 18:17 (Beijing Time; avoids the top-of-hour peak)
 ```
 
 Common time reference:

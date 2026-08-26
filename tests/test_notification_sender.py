@@ -115,7 +115,20 @@ class TestDiscordSender(unittest.TestCase):
         mock_post.assert_called_once()
         call_kw = mock_post.call_args[1]
         self.assertEqual(call_kw["json"]["content"], "content")
-        self.assertIn("username", call_kw["json"])
+        self.assertEqual(call_kw["json"]["username"], "Stock Analysis Bot")
+
+    @mock.patch("src.notification_sender.discord_sender.requests.post")
+    def test_send_webhook_chunks_by_discord_character_limit(self, mock_post):
+        mock_post.return_value = _response(204)
+        cfg = _config(discord_webhook_url="https://discord.com/webhook/1", discord_max_words=5000)
+        sender = DiscordSender(cfg)
+
+        result = sender.send_to_discord("가" * 4500)
+
+        self.assertTrue(result)
+        self.assertGreater(mock_post.call_count, 1)
+        for call in mock_post.call_args_list:
+            self.assertLessEqual(len(call.kwargs["json"]["content"]), 2000)
 
     @mock.patch("src.notification_sender.discord_sender.requests.post")
     def test_send_webhook_http_error_returns_false(self, mock_post):

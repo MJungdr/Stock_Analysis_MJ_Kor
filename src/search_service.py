@@ -38,6 +38,7 @@ from src.config import (
     normalize_news_strategy_profile,
     resolve_news_window_days,
 )
+from src.services.market_symbol_utils import get_suffix_market
 from src.services.run_diagnostics import record_provider_run, record_provider_run_started
 
 logger = logging.getLogger(__name__)
@@ -2161,11 +2162,13 @@ class SearchService:
     )
     _OFFICIAL_SOURCE_TERMS = (
         "cninfo", "sse.com", "szse.cn", "hkexnews", "sec.gov", "nasdaq.com",
-        "nyse.com", "上交所", "深交所", "港交所", "证券交易所",
+        "nyse.com", "dart.fss.or.kr", "kind.krx.co.kr", "krx.co.kr",
+        "上交所", "深交所", "港交所", "证券交易所",
     )
     _OFFICIAL_SOURCE_HOSTS = (
         "cninfo.com.cn", "sse.com", "sse.com.cn", "szse.cn", "hkexnews.hk",
-        "sec.gov", "nasdaq.com", "nyse.com",
+        "sec.gov", "nasdaq.com", "nyse.com", "dart.fss.or.kr", "kind.krx.co.kr",
+        "krx.co.kr",
     )
     _OFFICIAL_SOURCE_LABELS = (
         "cninfo", "hkexnews", "巨潮资讯", "巨潮资讯网",
@@ -2362,8 +2365,10 @@ class SearchService:
     
     @staticmethod
     def _is_foreign_stock(stock_code: str) -> bool:
-        """判断是否为港股或美股"""
-        code = stock_code.strip()
+        """判断是否为非 A 股符号。"""
+        code = (stock_code or "").strip()
+        if get_suffix_market(code) in {"jp", "kr", "tw"}:
+            return True
         # 美股：1-5个大写字母，可能包含点（如 BRK.B）
         if SearchService._US_STOCK_RE.match(code):
             return True
@@ -2387,6 +2392,20 @@ class SearchService:
         return bool(cls._US_STOCK_RE.match(code) or is_us_index_code(code))
 
     @classmethod
+    def _news_market(cls, stock_code: str, stock_name: str = "") -> str:
+        """Return cn/hk/us/jp/kr/tw for news query and locale selection."""
+        code = (stock_code or "").strip()
+        suffix_market = get_suffix_market(code)
+        if suffix_market:
+            return suffix_market
+        lower = code.lower()
+        if lower.startswith("hk") or lower.endswith(".hk") or (code.isdigit() and len(code) == 5):
+            return "hk"
+        if cls._is_us_stock(code):
+            return "us"
+        return "cn"
+
+    @classmethod
     def _should_prefer_chinese_news(
         cls,
         stock_code: str,
@@ -2400,6 +2419,9 @@ class SearchService:
         Avoids false positives for non-foreign but English contexts like
         ``stock_code="market", stock_name="US market"``.
         """
+        market = cls._news_market(stock_code, stock_name)
+        if market in {"us", "jp", "kr", "tw"}:
+            return False
         if any(cls._contains_chinese_text(keyword) for keyword in (focus_keywords or [])):
             return True
         if cls._contains_chinese_text(stock_name):
@@ -2472,7 +2494,43 @@ class SearchService:
             return {"search_lang": "zh-hans", "country": "CN"}
         if cls._is_us_stock(stock_code):
             return {"search_lang": "en", "country": "US"}
+        market = cls._news_market(stock_code)
+        if market == "kr":
+            return {"search_lang": "ko", "country": "KR"}
+        if market == "jp":
+            return {"search_lang": "ja", "country": "JP"}
+        if market == "tw":
+            return {"search_lang": "zh-hant", "country": "TW"}
         return {}
+
+    @classmethod
+    def _build_stock_news_query(
+        cls,
+        stock_code: str,
+        stock_name: str,
+        *,
+        focus_keywords: Optional[List[str]] = None,
+        prefer_chinese: bool,
+    ) -> str:
+        if focus_keywords:
+            return " ".join(focus_keywords)
+
+        market = cls._news_market(stock_code, stock_name)
+        code = (stock_code or "").strip().upper()
+        name = (stock_name or "").strip()
+        if market == "us":
+            return f"{name} {code} stock latest news earnings SEC Reuters Bloomberg CNBC"
+        if market == "kr":
+            return f"{name} {code} Korea stock latest news earnings KRX DART Yonhap Reuters"
+        if market == "jp":
+            return f"{name} {code} Japan stock latest news earnings Tokyo Reuters Nikkei"
+        if market == "tw":
+            return f"{name} {code} Taiwan stock latest news earnings TWSE Taipei Reuters"
+        if market == "hk" and not prefer_chinese:
+            return f"{name} {code} Hong Kong stock latest news earnings HKEX Reuters"
+        if prefer_chinese:
+            return f"{name} {code} 股票 最新消息"
+        return f"{name} {code} stock latest news"
 
     # A-share ETF code prefixes (Shanghai 51/52/56/58, Shenzhen 15/16/18)
     _A_ETF_PREFIXES = ('51', '52', '56', '58', '15', '16', '18')
@@ -3602,19 +3660,13 @@ class SearchService:
             focus_keywords=focus_keywords,
         )
 
-        # 构建搜索查询（优化搜索效果）
-        is_foreign = self._is_foreign_stock(stock_code)
-        if focus_keywords:
-            # 如果提供了关键词，直接使用关键词作为查询
-            query = " ".join(focus_keywords)
-        elif prefer_chinese:
-            query = f"{stock_name} {stock_code} 股票 最新消息"
-        elif is_foreign:
-            # 港股/美股使用英文搜索关键词
-            query = f"{stock_name} {stock_code} stock latest news"
-        else:
-            # 默认主查询：股票名称 + 核心关键词
-            query = f"{stock_name} {stock_code} 股票 最新消息"
+        query = self._build_stock_news_query(
+            stock_code,
+            stock_name,
+            focus_keywords=focus_keywords,
+            prefer_chinese=prefer_chinese,
+        )
+        news_market = self._news_market(stock_code, stock_name)
 
         logger.info(
             (
@@ -3635,7 +3687,7 @@ class SearchService:
         cache_key = self._cache_key(
             (
                 f"{query}|target={stock_code}:{stock_name}|"
-                f"news_pref={'zh' if prefer_chinese else 'default'}"
+                f"news_market={news_market}|news_pref={'zh' if prefer_chinese else 'default'}"
             ),
             max_results,
             search_days,
@@ -3944,10 +3996,68 @@ class SearchService:
         results = {}
         search_count = 0
 
+        news_market = self._news_market(stock_code, stock_name)
         is_foreign = self._is_foreign_stock(stock_code)
         is_index_etf = self.is_index_or_etf(stock_code, stock_name)
 
-        if is_foreign:
+        if news_market == "kr":
+            search_dimensions = [
+                {
+                    'name': 'latest_news',
+                    'query': f"{stock_name} {stock_code} Korea stock latest news semiconductor earnings Yonhap Reuters",
+                    'desc': 'Korea latest news',
+                    'tavily_topic': 'news',
+                    'strict_freshness': True,
+                },
+                {
+                    'name': 'market_analysis',
+                    'query': f"{stock_name} analyst rating target price Korea semiconductor outlook",
+                    'desc': 'Analyst research',
+                    'tavily_topic': None,
+                    'strict_freshness': False,
+                },
+                {
+                    'name': 'risk_check',
+                    'query': (
+                        f"{stock_name} {stock_code} index performance Korea ETF tracking error"
+                        if is_index_etf else f"{stock_name} risk lawsuit guidance memory chip demand Korea"
+                    ),
+                    'desc': 'Risk check',
+                    'tavily_topic': None if is_index_etf else 'news',
+                    'strict_freshness': not is_index_etf,
+                },
+                {
+                    'name': 'announcements',
+                    'query': (
+                        f"{stock_name} {stock_code} KRX DART disclosure announcement Korea"
+                        if not is_index_etf else f"{stock_name} {stock_code} KRX index composition change"
+                    ),
+                    'desc': 'KRX/DART disclosures',
+                    'tavily_topic': 'news',
+                    'strict_freshness': True,
+                },
+                {
+                    'name': 'earnings',
+                    'query': (
+                        f"{stock_name} earnings revenue operating profit DRAM NAND forecast Korea"
+                        if not is_index_etf else f"{stock_name} {stock_code} Korea index constituents performance outlook"
+                    ),
+                    'desc': 'Earnings outlook',
+                    'tavily_topic': None,
+                    'strict_freshness': False,
+                },
+                {
+                    'name': 'industry',
+                    'query': (
+                        f"{stock_name} semiconductor memory industry competitors market share AI data center demand"
+                        if not is_index_etf else f"{stock_name} {stock_code} Korea sector allocation holdings"
+                    ),
+                    'desc': 'Industry analysis',
+                    'tavily_topic': None,
+                    'strict_freshness': False,
+                },
+            ]
+        elif is_foreign:
             search_dimensions = [
                 {
                     'name': 'latest_news',
@@ -4104,6 +4214,16 @@ class SearchService:
                     max_results=provider_max_results,
                     days=request_days,
                     topic=dim['tavily_topic'],
+                )
+            elif isinstance(provider, BraveSearchProvider):
+                response = provider.search(
+                    dim['query'],
+                    max_results=provider_max_results,
+                    days=request_days,
+                    **self._brave_search_locale(
+                        stock_code,
+                        prefer_chinese=self._should_prefer_chinese_news(stock_code, stock_name),
+                    ),
                 )
             else:
                 response = provider.search(

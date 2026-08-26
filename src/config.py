@@ -75,6 +75,31 @@ DEFAULT_ALPHASIFT_INSTALL_SPEC = (
 )
 
 
+def _resolve_index_stock_code_for_config(raw: str) -> str:
+    text = str(raw or "").strip()
+    if not text:
+        return ""
+
+    try:
+        from src.data.stock_index_loader import resolve_index_stock_code
+    except ImportError as exc:
+        logger.debug("[配置] 股票索引解析不可用，保留原始代码 %s: %s", text, exc)
+        return text.upper()
+
+    resolved = resolve_index_stock_code(text)
+    return str(resolved or text).strip().upper()
+
+
+def _parse_stock_list_value(stock_list_str: str) -> List[str]:
+    """Parse STOCK_LIST and resolve indexed JP/KR bare codes consistently."""
+
+    return [
+        _resolve_index_stock_code_for_config(c)
+        for c in str(stock_list_str or "").split(",")
+        if (c or "").strip()
+    ]
+
+
 @dataclass
 class ConfigIssue:
     """Structured configuration validation issue with a severity level.
@@ -1192,7 +1217,11 @@ class Config:
         3. 代码中的默认值
         """
         cls._capture_bootstrap_runtime_env_overrides()
-        preexisting_report_language = os.environ.get("REPORT_LANGUAGE")
+        preexisting_report_language = (
+            os.environ.get("REPORT_LANGUAGE")
+            or os.environ.get("REPORT_LAGUAGE")
+            or os.environ.get("report_laguage")
+        )
 
         # 确保环境变量已加载
         setup_env()
@@ -1245,11 +1274,7 @@ class Config:
             default='',
             prefer_env_file=True,
         )
-        stock_list = [
-            (c or "").strip().upper()
-            for c in stock_list_str.split(',')
-            if (c or "").strip()
-        ]
+        stock_list = _parse_stock_list_value(stock_list_str)
         
         # === LiteLLM multi-key parsing ===
         # GEMINI_API_KEYS (comma-separated) > GEMINI_API_KEY (single)
@@ -2487,7 +2512,12 @@ class Config:
     ) -> str:
         """Resolve REPORT_LANGUAGE while preserving real process env overrides."""
         file_value = cls._get_env_file_value("REPORT_LANGUAGE")
+        alias_file_value = (
+            cls._get_env_file_value("REPORT_LAGUAGE")
+            or cls._get_env_file_value("report_laguage")
+        )
         env_value = os.getenv("REPORT_LANGUAGE")
+        alias_env_value = os.getenv("REPORT_LAGUAGE") or os.getenv("report_laguage")
 
         if preexisting_env_value is not None:
             env_text = preexisting_env_value.strip()
@@ -2505,7 +2535,22 @@ class Config:
         if file_value is not None:
             return file_value
 
-        return env_value or "zh"
+        if env_value is not None:
+            return env_value
+
+        if alias_file_value is not None:
+            logging.getLogger(__name__).warning(
+                "Using misspelled report language key REPORT_LAGUAGE/report_laguage; please rename it to REPORT_LANGUAGE."
+            )
+            return alias_file_value
+
+        if alias_env_value is not None:
+            logging.getLogger(__name__).warning(
+                "Using misspelled report language key REPORT_LAGUAGE/report_laguage; please rename it to REPORT_LANGUAGE."
+            )
+            return alias_env_value
+
+        return "zh"
 
     @classmethod
     def _parse_report_language(cls, value: Optional[str]) -> str:
@@ -2707,11 +2752,7 @@ class Config:
         if not stock_list_str:
             stock_list_str = os.getenv('STOCK_LIST', '')
 
-        stock_list = [
-            (c or "").strip().upper()
-            for c in stock_list_str.split(',')
-            if (c or "").strip()
-        ]
+        stock_list = _parse_stock_list_value(stock_list_str)
 
         self.stock_list = stock_list
     

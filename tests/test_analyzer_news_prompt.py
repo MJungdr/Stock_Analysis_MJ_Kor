@@ -147,6 +147,29 @@ class AnalyzerNewsPromptTestCase(unittest.TestCase):
         self.assertIn("支撑/压力位", prompt)
         self.assertIn("洗盘观察", prompt)
 
+    def test_korean_system_prompt_forbids_copying_chinese_schema_text(self) -> None:
+        with patch.object(GeminiAnalyzer, "_init_litellm", return_value=None):
+            analyzer = GeminiAnalyzer()
+
+        prompt = analyzer._get_analysis_system_prompt("ko", stock_code="000660.KS")
+
+        self.assertIn("출력 언어(최우선)", prompt)
+        self.assertIn("최종 출력의 사용자 표시 문구로 복사하지 마세요", prompt)
+        self.assertIn("사용자가 읽는 모든 JSON 값은 한국어", prompt)
+
+    def test_korean_text_fallback_uses_korean_labels(self) -> None:
+        with patch.object(GeminiAnalyzer, "_init_litellm", return_value=None):
+            analyzer = GeminiAnalyzer()
+
+        with patch.object(analyzer, "_get_runtime_config", return_value=SimpleNamespace(report_language="ko")):
+            result = analyzer._parse_text_response("", "000660.KS", "SK하이닉스")
+
+        self.assertEqual(result.trend_prediction, "횡보")
+        self.assertEqual(result.operation_advice, "보유")
+        self.assertEqual(result.confidence_level, "낮음")
+        self.assertEqual(result.analysis_summary, "분석 결과 없음")
+        self.assertIn("JSON 파싱", result.key_points)
+
     def test_prompt_contains_time_constraints(self) -> None:
         with patch.object(GeminiAnalyzer, "_init_litellm", return_value=None):
             analyzer = GeminiAnalyzer()
