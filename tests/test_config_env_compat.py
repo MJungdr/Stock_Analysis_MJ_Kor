@@ -104,6 +104,30 @@ class ConfigEnvCompatibilityTestCase(unittest.TestCase):
 
     @patch("src.config.setup_env")
     @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_market_review_is_opt_in_when_not_configured(
+        self, _mock_parse_litellm_yaml, _mock_setup_env
+    ):
+        with patch.dict(os.environ, {"STOCK_LIST": "AAPL"}, clear=True):
+            config = Config._load_from_env()
+
+        self.assertFalse(config.market_review_enabled)
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
+    def test_market_review_can_be_explicitly_enabled(
+        self, _mock_parse_litellm_yaml, _mock_setup_env
+    ):
+        with patch.dict(
+            os.environ,
+            {"STOCK_LIST": "AAPL", "MARKET_REVIEW_ENABLED": "true"},
+            clear=True,
+        ):
+            config = Config._load_from_env()
+
+        self.assertTrue(config.market_review_enabled)
+
+    @patch("src.config.setup_env")
+    @patch.object(Config, "_parse_litellm_yaml", return_value=[])
     def test_generation_backend_env_defaults_to_litellm_contract(
         self, _mock_parse_litellm_yaml, _mock_setup_env
     ):
