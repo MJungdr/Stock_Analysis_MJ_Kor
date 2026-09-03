@@ -640,6 +640,42 @@ class TestNotificationServiceReportGeneration(unittest.TestCase):
         self.assertIn("*分析模型：gemini/gemini-2.5-flash*", out)
 
     @mock.patch("src.notification.get_config")
+    def test_generate_dashboard_report_supports_korean_market_snapshot_source(
+        self, mock_get_config: mock.MagicMock
+    ):
+        mock_get_config.return_value = _make_config(
+            report_renderer_enabled=False,
+            report_language="ko",
+        )
+        service = NotificationService()
+        result = AnalysisResult(
+            code="NVDA",
+            name="NVIDIA",
+            sentiment_score=72,
+            trend_prediction="상승",
+            operation_advice="보유",
+            analysis_summary="추세 양호",
+            market_snapshot={
+                "close": 180,
+                "prev_close": 178,
+                "open": 179,
+                "high": 181,
+                "low": 177,
+                "pct_chg": 1.12,
+                "change_amount": 2,
+                "amplitude": 2.25,
+                "volume": 100,
+                "amount": 1000,
+                "price": 180,
+                "source": "tencent",
+            },
+        )
+
+        out = service.generate_dashboard_report([result], report_date="2026-09-02")
+
+        self.assertIn("텐센트 파이낸스", out)
+
+    @mock.patch("src.notification.get_config")
     def test_generate_dashboard_report_shows_phase_decision_in_default_renderer(
         self, mock_get_config: mock.MagicMock
     ):
